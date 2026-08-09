@@ -1,10 +1,6 @@
 """
 Ingestion entry point: turns one case PDF into embedded chunks + an embedded
 case-level summary, both stored in ChromaDB.
-
-Assumes the caller has already checked check_if_exists(case_name) and decided
-this case is new — this function does not check for duplicates itself, and
-will happily create duplicate records if called twice on the same case.
 """
 
 import os
@@ -30,6 +26,31 @@ def _get_embedding_model():
     if _embedding_model is None:
         _embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
     return _embedding_model
+
+
+def check_if_exists(case_name):
+    """
+    Check whether a case-level summary with metadata case_name already
+    exists in the "legal_cases" ChromaDB collection.
+
+    Args:
+        case_name: the case name to check for (PDF filename without
+            extension).
+
+    Returns:
+        bool: True if a summary with this case_name already exists,
+        False otherwise (including if the collection doesn't exist yet,
+        since nothing has been ingested at all in that case).
+    """
+    client = chromadb.PersistentClient(path=CHROMA_PATH)
+
+    try:
+        collection = client.get_collection(name=CASES_COLLECTION)
+    except Exception:
+        return False  # no cases ingested yet -> nothing can exist
+
+    existing = collection.get(where={"case_name": case_name})
+    return len(existing.get("ids", [])) > 0
 
 
 def ingest_new_case(filepath):
@@ -90,10 +111,6 @@ def replace_case(filepath):
     existing summary for this case_name from "legal_chunks" and
     "legal_cases", then call ingest_new_case() to rebuild them fresh.
 
-    Use this when a case PDF has changed and needs updating, rather than
-    ingest_new_case() (which assumes the case is new and would otherwise
-    create duplicate records alongside the stale ones).
-
     Args:
         filepath: path to the case PDF.
 
@@ -103,19 +120,17 @@ def replace_case(filepath):
     case_name = os.path.splitext(os.path.basename(filepath))[0]
     client = chromadb.PersistentClient(path=CHROMA_PATH)
 
-    # Delete existing chunks for this case, if the collection exists.
     try:
         chunks_collection = client.get_collection(name=CHUNKS_COLLECTION)
         chunks_collection.delete(where={"case_name": case_name})
     except Exception:
-        pass  # collection doesn't exist yet -> nothing to delete
+        pass
 
-    # Delete existing summary for this case, if the collection exists.
     try:
         cases_collection = client.get_collection(name=CASES_COLLECTION)
         cases_collection.delete(where={"case_name": case_name})
     except Exception:
-        pass  # collection doesn't exist yet -> nothing to delete
+        pass
 
     return ingest_new_case(filepath)
 
@@ -132,5 +147,8 @@ if __name__ == "__main__":
         name = replace_case(path)
         print(f"Replaced case: {name}")
     else:
+        if check_if_exists(os.path.splitext(os.path.basename(path))[0]):
+            print("Case already exists. Use --replace to re-ingest it.")
+            sys.exit(1)
         name = ingest_new_case(path)
         print(f"Ingested case: {name}")
