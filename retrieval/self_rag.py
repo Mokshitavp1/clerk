@@ -13,8 +13,38 @@ Returns the contract 3.3 shape from CONTRACTS.md:
 """
 
 from stage1_case_retrieval import get_relevant_cases
-from retrieval_stage2 import get_relevant_chunks
-from grade_chunks import grade_chunks
+from stage2_chunk_retrieval import get_relevant_chunks
+
+
+def grade_chunks(chunks, relevance_floor=0.4):
+    """
+    Filter out chunks whose relevance_score falls below relevance_floor.
+
+    Args:
+        chunks: list of {"text", "case_name", "page_number", "relevance_score"}
+            dicts, as returned by stage2_chunk_retrieval.get_relevant_chunks.
+        relevance_floor: minimum relevance_score a chunk must meet or exceed
+            to survive grading.
+
+    Returns:
+        tuple: (filtered_chunks, dropped_count_per_case)
+            filtered_chunks: list[dict] — the chunks that passed the floor,
+                in their original relative order.
+            dropped_count_per_case: dict[str, int] — {case_name: number of
+                chunks dropped for that case}. Cases with zero drops are
+                simply absent from this dict rather than present with 0.
+    """
+    filtered_chunks = []
+    dropped_count_per_case = {}
+
+    for chunk in chunks:
+        if chunk["relevance_score"] >= relevance_floor:
+            filtered_chunks.append(chunk)
+        else:
+            case_name = chunk["case_name"]
+            dropped_count_per_case[case_name] = dropped_count_per_case.get(case_name, 0) + 1
+
+    return filtered_chunks, dropped_count_per_case
 
 
 def get_graded_cases(query, initial_top_k=5, min_cases_required=2):
