@@ -36,7 +36,19 @@ from self_rag import get_graded_cases
 from verifier import generate_verified_answer
 from hyde import rewrite_query
 from router import decide_mode, build_confidence_line, build_warning
-from theme import inject_theme, render_citations, render_mode_tabs, render_warning_box, render_progress_steps
+from theme import (
+    inject_theme,
+    render_app_header,
+    render_section_label,
+    render_doc_item,
+    render_stat_pill,
+    render_citations,
+    render_citation_stamp,
+    render_mode_tabs,
+    render_warning_box,
+    render_progress_steps,
+    render_answer_card,
+)
 
 CASES_FOLDER = "cases"
 
@@ -77,12 +89,29 @@ def _list_uploaded_case_filenames():
 # ============================================================================
 
 with st.sidebar:
-    st.header("Knowledge Base")
+    # ── Branding ──────────────────────────────────────────────────
+    st.markdown(
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.72rem;'
+        'font-weight:700;text-transform:uppercase;letter-spacing:0.12em;'
+        'color:#AB886D;margin-bottom:0.1rem;">Clerk</div>'
+        '<div style="font-family:\'Source Serif 4\',serif;font-size:1.15rem;'
+        'font-weight:700;color:#E4E0E1;letter-spacing:-0.01em;'
+        'margin-bottom:1.4rem;line-height:1.2;">Knowledge Base</div>',
+        unsafe_allow_html=True,
+    )
 
+    # ── Upload ────────────────────────────────────────────────────
+    st.markdown(
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.66rem;'
+        'font-weight:600;text-transform:uppercase;letter-spacing:0.10em;'
+        'color:#AB886D;margin-bottom:0.4rem;">Upload Cases</div>',
+        unsafe_allow_html=True,
+    )
     uploaded_files = st.file_uploader(
-        "Upload case PDFs",
+        "Drop PDF files here",
         type=["pdf"],
         accept_multiple_files=True,
+        label_visibility="collapsed",
     )
 
     if uploaded_files:
@@ -90,19 +119,30 @@ with st.sidebar:
             save_path = os.path.join(CASES_FOLDER, uploaded_file.name)
             with open(save_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
-        st.success(f"Saved {len(uploaded_files)} file(s) to '{CASES_FOLDER}/'.")
+        st.success(f"Saved {len(uploaded_files)} file(s).")
 
-    st.subheader("Currently uploaded cases")
+    # ── Indexed cases ─────────────────────────────────────────────
+    st.markdown(
+        '<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.66rem;'
+        'font-weight:600;text-transform:uppercase;letter-spacing:0.10em;'
+        'color:#AB886D;margin-top:1.2rem;margin-bottom:0.5rem;">Documents</div>',
+        unsafe_allow_html=True,
+    )
     case_filenames = _list_uploaded_case_filenames()
     if case_filenames:
+        render_stat_pill(len(case_filenames), "case" + ("s" if len(case_filenames) != 1 else "") + " loaded")
         for filename in case_filenames:
-            st.write(f"📄 {filename}")
+            render_doc_item(filename)
     else:
-        st.caption("No case PDFs uploaded yet.")
+        st.markdown(
+            '<div class="empty-state">No case PDFs uploaded yet.</div>',
+            unsafe_allow_html=True,
+        )
 
     st.divider()
 
-    if st.button("Build/Update Knowledge Base", use_container_width=True):
+    # ── Build button — primary action ─────────────────────────────
+    if st.button("⬆ Build / Update Knowledge Base", use_container_width=True):
         with st.spinner("Ingesting uploaded cases..."):
             for filename in case_filenames:
                 filepath = os.path.join(CASES_FOLDER, filename)
@@ -114,25 +154,24 @@ with st.sidebar:
                     st.session_state.pending_replace_filename = filepath
                 else:
                     ingest_new_case(filepath)
-                    st.success(f"Ingested new case: {case_name}")
+                    st.success(f"Ingested: {case_name}")
 
     # "This case already exists — replace it?" confirm dialog. Rendered
     # here (outside the button's if-block) so it persists across the
-    # rerun that clicking a button inside Streamlit triggers, instead of
-    # vanishing the instant the user clicks anything.
+    # rerun that clicking a button inside Streamlit triggers.
     if st.session_state.pending_replace_filename:
         pending_filepath = st.session_state.pending_replace_filename
         pending_case_name = os.path.splitext(os.path.basename(pending_filepath))[0]
 
-        st.warning(f"'{pending_case_name}' already exists in the knowledge base.")
+        render_warning_box(f"'{pending_case_name}' already exists in the knowledge base.")
         confirm_col, cancel_col = st.columns(2)
 
         with confirm_col:
-            if st.button("Replace it", use_container_width=True):
+            if st.button("Replace", use_container_width=True):
                 with st.spinner(f"Replacing {pending_case_name}..."):
                     replace_case(pending_filepath)
                 st.session_state.pending_replace_filename = None
-                st.success(f"Replaced case: {pending_case_name}")
+                st.success(f"Replaced: {pending_case_name}")
                 st.rerun()
 
         with cancel_col:
@@ -257,14 +296,14 @@ def run_pipeline(question, mode):
 # Main area: question input + mode selection (B5.2)
 # ============================================================================
 
-st.title("Legal RAG")
+render_app_header()
 
 question = st.text_input(
     "Ask a question about your uploaded cases",
     key="question_input",
 )
 
-st.write("**Choose a mode:**")
+render_section_label("Analysis Mode")
 render_mode_tabs(st.session_state.selected_mode or "fast")
 
 fast_col, deep_col, auto_col = st.columns(3)
@@ -320,26 +359,33 @@ if st.session_state.result_mode == "fast" and st.session_state.stage1_results:
 # ============================================================================
 
 if st.session_state.pipeline_result:
-    st.subheader("Answer")
-    st.write(st.session_state.pipeline_result["answer"])
+    result = st.session_state.pipeline_result
+    verified = result["verified"]
+    answer_text = result["answer"]
 
-    # Stamped citation badges — rendered from the chunks stored in stage1_results.
-    # stage1_results items have a "case_name" key; page_number defaults to
-    # "—" when not present so the badge still renders cleanly.
+    # Build citation HTML to embed inside the answer card.
+    citations_html = ""
     if st.session_state.stage1_results:
-        citation_chunks = [
-            {"case_name": r["case_name"], "page_number": r.get("page_number", "—")}
+        citations_html = "".join(
+            render_citation_stamp(
+                r["case_name"], r.get("page_number", "—")
+            )
             for r in st.session_state.stage1_results
-        ]
-        render_citations(citation_chunks)
+        )
 
-    if not st.session_state.pipeline_result["verified"]:
-        st.caption("⚠️ No verified answer was found — showing fallback text above.")
-
+    # Confidence line for Fast mode.
+    conf_line = ""
     if st.session_state.result_mode == "fast" and st.session_state.stage1_results:
-        st.caption(build_confidence_line(st.session_state.stage1_results))
+        conf_line = build_confidence_line(st.session_state.stage1_results)
 
-    if st.button("Not satisfied?"):
+    render_answer_card(
+        answer_text=answer_text,
+        verified=verified,
+        confidence_line=conf_line,
+        citations_html=citations_html,
+    )
+
+    if st.button("🔄 Not satisfied? Try again"):
         if st.session_state.result_mode == "fast":
             # Original mode was Fast -> escalate to Deep Thinking on the
             # same, unmodified question.
