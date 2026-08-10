@@ -36,10 +36,12 @@ from self_rag import get_graded_cases
 from verifier import generate_verified_answer
 from hyde import rewrite_query
 from router import decide_mode, build_confidence_line, build_warning
+from theme import inject_theme, render_citations, render_mode_tabs, render_warning_box, render_progress_steps
 
 CASES_FOLDER = "cases"
 
 st.set_page_config(page_title="Legal RAG", layout="wide")
+inject_theme()
 
 os.makedirs(CASES_FOLDER, exist_ok=True)
 
@@ -151,21 +153,24 @@ PROGRESS_STEPS = [
 ]
 
 
+RENDER_STEP_LABELS = [
+    "Searching cases",
+    "Reading matches",
+    "Drafting answer",
+    "Verifying citations",
+]
+
+
 def update_progress(step_index, steps):
     """
-    Update a single, in-place progress bar + status line to reflect the
-    given step, instead of a plain spinner that gives no sense of which
-    stage the pipeline is actually in.
+    Update a single, in-place progress placeholder using render_progress_steps
+    so the user sees the styled step-track instead of a plain progress bar.
     """
     if step_index == 0 or "progress_placeholder" not in st.session_state:
         st.session_state.progress_placeholder = st.empty()
 
-    placeholder = st.session_state.progress_placeholder
-    fraction_complete = (step_index + 1) / len(steps)
-
-    with placeholder.container():
-        st.progress(fraction_complete)
-        st.write(steps[step_index])
+    with st.session_state.progress_placeholder.container():
+        render_progress_steps(RENDER_STEP_LABELS, step_index)
 
 
 def clear_progress():
@@ -260,6 +265,7 @@ question = st.text_input(
 )
 
 st.write("**Choose a mode:**")
+render_mode_tabs(st.session_state.selected_mode or "fast")
 
 fast_col, deep_col, auto_col = st.columns(3)
 
@@ -296,7 +302,7 @@ if st.session_state.result_mode == "fast" and st.session_state.stage1_results:
     warning = build_warning(st.session_state.stage1_results)
 
     if warning and not st.session_state.warning_acknowledged:
-        st.warning(warning["message"])
+        render_warning_box(warning["message"])
 
         with st.expander("Explain why"):
             st.write(warning["explain_why"])
@@ -316,6 +322,16 @@ if st.session_state.result_mode == "fast" and st.session_state.stage1_results:
 if st.session_state.pipeline_result:
     st.subheader("Answer")
     st.write(st.session_state.pipeline_result["answer"])
+
+    # Stamped citation badges — rendered from the chunks stored in stage1_results.
+    # stage1_results items have a "case_name" key; page_number defaults to
+    # "—" when not present so the badge still renders cleanly.
+    if st.session_state.stage1_results:
+        citation_chunks = [
+            {"case_name": r["case_name"], "page_number": r.get("page_number", "—")}
+            for r in st.session_state.stage1_results
+        ]
+        render_citations(citation_chunks)
 
     if not st.session_state.pipeline_result["verified"]:
         st.caption("⚠️ No verified answer was found — showing fallback text above.")
