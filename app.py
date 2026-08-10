@@ -38,7 +38,7 @@ from hyde import rewrite_query
 from router import decide_mode, build_confidence_line, build_warning
 from theme import (
     inject_theme,
-    render_app_header,
+    render_hero_section,
     render_section_label,
     render_doc_item,
     render_stat_pill,
@@ -48,6 +48,9 @@ from theme import (
     render_warning_box,
     render_progress_steps,
     render_answer_card,
+    render_document_workspace,
+    render_how_it_works,
+    render_footer_status,
 )
 
 CASES_FOLDER = "cases"
@@ -293,17 +296,33 @@ def run_pipeline(question, mode):
 
 
 # ============================================================================
-# Main area: question input + mode selection (B5.2)
+# Main area: 7-Section Vertically Scrollable Workspace Layout
 # ============================================================================
 
-render_app_header()
+# --- Section 1: Hero Introduction ---
+render_hero_section()
 
+# --- Section 2: Document Workspace ---
+render_section_label("Section 2: Document Workspace")
+st.markdown('<div class="fade-in-up delay-1">', unsafe_allow_html=True)
+render_document_workspace(case_filenames)
+st.markdown('</div>', unsafe_allow_html=True)
+
+# --- Section 3: AI Command Center ---
+render_section_label("Section 3: Ask Your Cases")
+st.markdown('<div class="command-center fade-in-up delay-2">', unsafe_allow_html=True)
+st.markdown('<div class="command-header">Legal Command Center</div>', unsafe_allow_html=True)
+st.markdown('<div class="question-input-anchor"></div>', unsafe_allow_html=True)
 question = st.text_input(
     "Ask a question about your uploaded cases",
     key="question_input",
+    placeholder="e.g. Compare the liability limits or indemnification clauses across cases...",
 )
+st.markdown('</div>', unsafe_allow_html=True)
 
-render_section_label("Analysis Mode")
+# --- Section 4: Analysis Mode Selection ---
+render_section_label("Section 4: Choose Analysis Mode")
+st.markdown('<div class="fade-in-up delay-3">', unsafe_allow_html=True)
 render_mode_tabs(st.session_state.selected_mode or "fast")
 
 fast_col, deep_col, auto_col = st.columns(3)
@@ -331,12 +350,18 @@ with auto_col:
 
 if st.session_state.selected_mode and not question:
     st.caption("Type a question above, then choose a mode to run it.")
+st.markdown('</div>', unsafe_allow_html=True)
 
+# --- Section 5: How It Works / Retrieval Architecture ---
+render_section_label("Section 5: Retrieval Engine Architecture")
+st.markdown('<div class="fade-in-up delay-4">', unsafe_allow_html=True)
+render_how_it_works()
+st.markdown('</div>', unsafe_allow_html=True)
 
-# ============================================================================
+# --- Section 6: Results & Citations Output ---
+render_section_label("Section 6: Generated Analysis & Citations")
+
 # Ambiguity warning: display + "Continue anyway" (B5.4)
-# ============================================================================
-
 if st.session_state.result_mode == "fast" and st.session_state.stage1_results:
     warning = build_warning(st.session_state.stage1_results)
 
@@ -353,11 +378,7 @@ if st.session_state.result_mode == "fast" and st.session_state.stage1_results:
             st.session_state.warning_acknowledged = True
             st.rerun()
 
-
-# ============================================================================
 # Answer display, confidence line, and "Not satisfied?" regenerate (B5.5)
-# ============================================================================
-
 if st.session_state.pipeline_result:
     result = st.session_state.pipeline_result
     verified = result["verified"]
@@ -397,3 +418,19 @@ if st.session_state.pipeline_result:
             rewritten_question = rewrite_query(st.session_state.result_question)
             run_pipeline(rewritten_question, "deep")
             st.rerun()
+else:
+    # Empty result placeholder
+    st.markdown(
+        """
+        <div class="answer-card" style="opacity: 0.7;">
+            <div class="answer-card-header">Report Preview</div>
+            <p class="answer-text" style="font-style: italic; color: var(--muted); font-size: 0.95rem;">
+                Submit a question and select an analysis mode above. The generated response, verification logs, and citation timestamps will compile here.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+# --- Section 7: Footer & System Operational Status ---
+render_footer_status(len(case_filenames))
