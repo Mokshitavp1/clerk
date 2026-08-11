@@ -1,5 +1,6 @@
 """Legal Retrieval Assistant query screen."""
 
+import html
 import os
 import sys
 
@@ -110,6 +111,7 @@ st.markdown(
     [data-testid="stForm"] [data-testid="stTextArea"] { padding: 0 18px; }
     [data-testid="stForm"] textarea { min-height: 150px !important; border: 0 !important; background: transparent !important; box-shadow: none !important; color: var(--brown) !important; font: italic 16px/1.55 'Source Serif 4', Georgia, serif !important; resize: none; }
     [data-testid="stForm"] textarea::placeholder { color: #9C938C !important; opacity: 1; }
+    [data-testid="stForm"] button { width: 100%; padding: 11px 15px; border: 1px solid var(--brown); border-radius: 5px; color: var(--paper); background: var(--brown); font: 700 11px/1 Inter, sans-serif; letter-spacing: .055em; }
     .form-top { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
     .form-bottom { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 18px 16px; border-top: 1px solid var(--line); }
     .progress-stepper { max-width: 890px; margin: 22px auto 0; padding: 18px 20px; border: 1px solid var(--line); border-radius: 9px; background: rgba(253,251,248,.65); }
@@ -169,26 +171,111 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
+def _render_progress(slot, active_step, status):
+    """Render the transient pipeline indicator with one current status line."""
+    steps = ("RETRIEVE", "GRADE", "VERIFY")
+    parts = []
+    for index, label in enumerate(steps):
+        state = "complete" if index < active_step else "active" if index == active_step else ""
+        marker = "&#10003;" if index < active_step else str(index + 1)
+        parts.append(f'<div class="step {state}"><span class="step-dot">{marker}</span>{label}</div>')
+    slot.markdown(
+        f'<section class="progress-stepper"><div class="progress-track">{"".join(parts)}</div><div class="step-status">{status}</div></section>',
+        unsafe_allow_html=True,
+    )
+
+
+def _run_query(question, progress_slot):
+    """Run the Retrieve → Grade → Verify contract and update its live status."""
+    from stage1_case_retrieval import get_relevant_cases
+    from stage2_chunk_retrieval import get_relevant_chunks
+    from self_rag import get_graded_cases
+    from verifier import generate_verified_answer
+
+    _render_progress(progress_slot, 0, "Searching the knowledge base for relevant cases…")
+    shortlisted_cases = get_relevant_cases(question)
+    case_names = [case["case_name"] for case in shortlisted_cases]
+    retrieved_chunks = get_relevant_chunks(question, case_names)
+
+    _render_progress(
+        progress_slot,
+        1,
+        f"Shortlisted {len(shortlisted_cases)} case{'s' if len(shortlisted_cases) != 1 else ''}; retrieved {len(retrieved_chunks)} relevant passages.",
+    )
+
+    def grade_status(signal):
+        if signal["retrying"]:
+            message = (
+                f"{signal['dropped_chunks']} passages fell below the relevance floor; "
+                "retrying with a wider shortlist."
+            )
+        else:
+            message = (
+                f"{signal['surviving']} of {signal['shortlisted']} cases cleared the relevance floor."
+            )
+        _render_progress(progress_slot, 1, message)
+
+    graded = get_graded_cases(question, progress_callback=grade_status)
+    if graded["insufficient_cases"]:
+        progress_slot.empty()
+        return {"answer": "No sufficient, relevant cases were found in the uploaded documents.", "verified": False}
+
+    chunks = [chunk for case in graded["cases"] for chunk in case["chunks"]]
+    _render_progress(progress_slot, 2, "Generating a grounded response and checking its citations…")
+
+    def verify_status(signal):
+        if signal["retrying"]:
+            _render_progress(progress_slot, 2, "Verification flagged an issue; retrying once with the verifier feedback.")
+        elif signal["verified"]:
+            _render_progress(progress_slot, 2, "Verification passed cleanly.")
+        else:
+            _render_progress(progress_slot, 2, "Verification could not produce a fully grounded answer.")
+
+    result = generate_verified_answer(question, chunks, progress_callback=verify_status)
+    progress_slot.empty()
+    return result
+
+
 st.markdown(
     """
     <main class="main-shell"><section class="query-page">
       <div class="eyebrow">§ QUERY ENGINE V.4</div>
       <h1>Ask a Legal Question</h1>
       <p class="intro">Enter your query, cite specific statutes, or describe a fact pattern. The system will retrieve relevant case law and synthesize a memorandum.</p>
-      <section class="query-card">
-        <div class="card-top">
-          <div class="mode-control"><span class="mode active">FAST</span><span class="mode">DEEP THINKING</span><span class="mode">AUTO</span></div>
-          <span class="options">⚙ OPTIONS</span>
-        </div>
-        <div class="question-space">E.g., What is the standard for piercing the corporate veil in Delaware regarding undercapitalization?</div>
-        <div class="card-bottom"><span class="nlp">◈ NLP ACTIVE</span><div class="actions"><span class="ambiguity">TEST AMBIGUITY</span><span class="retrieve">RETRIEVE →</span></div></div>
-      </section>
-      <section class="suggestions">
-        <article class="suggestion"><span class="suggestion-label">RECENT QUERY</span><div class="suggestion-text">Statute of limitations for medical malpractice in New...</div></article>
-        <article class="suggestion"><span class="suggestion-label">SUGGESTED</span><div class="suggestion-text">Exceptions to the hearsay rule for business records in feder...</div></article>
-        <article class="suggestion"><span class="suggestion-label">TRENDING</span><div class="suggestion-text">Recent Supreme Court rulings on Chevron deference...</div></article>
-      </section>
     </section></main>
     """,
     unsafe_allow_html=True,
 )
+
+with st.form("legal-query", clear_on_submit=False):
+    st.markdown(
+        '<div class="form-top"><div class="mode-control"><span class="mode active">FAST</span><span class="mode">DEEP THINKING</span><span class="mode">AUTO</span></div><span class="options">&#9881; OPTIONS</span></div>',
+        unsafe_allow_html=True,
+    )
+    question = st.text_area(
+        "Legal question",
+        label_visibility="collapsed",
+        placeholder="E.g., What is the standard for piercing the corporate veil in Delaware regarding undercapitalization?",
+    )
+    bottom_left, bottom_middle, bottom_right = st.columns((3.4, 1.8, 1.8))
+    with bottom_left:
+        st.markdown('<span class="nlp">&#9672; NLP ACTIVE</span>', unsafe_allow_html=True)
+    with bottom_middle:
+        st.markdown('<span class="ambiguity">TEST AMBIGUITY</span>', unsafe_allow_html=True)
+    with bottom_right:
+        submitted = st.form_submit_button("RETRIEVE →", use_container_width=True)
+
+progress_slot = st.empty()
+if submitted and question.strip():
+    with st.spinner(""):
+        st.session_state.last_query_result = _run_query(question.strip(), progress_slot)
+
+if submitted and not question.strip():
+    st.warning("Enter a legal question before retrieving cases.")
+
+if "last_query_result" in st.session_state:
+    result = st.session_state.last_query_result
+    st.markdown(
+        f'<div class="result-card">{html.escape(result["answer"])}</div>',
+        unsafe_allow_html=True,
+    )
