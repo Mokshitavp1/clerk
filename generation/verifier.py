@@ -131,7 +131,7 @@ def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct"):
     return _parse_verification_response(response["message"]["content"])
 
 
-def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct"):
+def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", progress_callback=None):
     """
     Generate an answer and verify it; retry generation ONCE (steered by
     the verification issue) if the first attempt fails verification. If
@@ -160,17 +160,25 @@ def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct"):
     result = verify_answer(answer_text, chunks, model=model)
 
     if result["verified"]:
+        if progress_callback:
+            progress_callback({"verified": True, "retrying": False})
         return {"answer": answer_text, "verified": True}
 
     # One retry, steered away from whatever verify_answer flagged.
+    if progress_callback:
+        progress_callback({"verified": False, "retrying": True, "issue": result["issue"]})
     retry_answer_text = generate_answer(
         question, chunks, model=model, failure_note=result["issue"]
     )
     retry_result = verify_answer(retry_answer_text, chunks, model=model)
 
     if retry_result["verified"]:
+        if progress_callback:
+            progress_callback({"verified": True, "retrying": False})
         return {"answer": retry_answer_text, "verified": True}
 
+    if progress_callback:
+        progress_callback({"verified": False, "retrying": False, "issue": retry_result["issue"]})
     return {
         "answer": "No verified answer could be found in the uploaded documents for this question.",
         "verified": False,

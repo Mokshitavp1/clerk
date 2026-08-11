@@ -1,6 +1,16 @@
-"""Static visual baseline for the Legal Retrieval Assistant query screen."""
+"""Legal Retrieval Assistant query screen."""
+
+import os
+import sys
 
 import streamlit as st
+
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+for _folder in ("retrieval", "generation"):
+    _path = os.path.join(PROJECT_ROOT, _folder)
+    if _path not in sys.path:
+        sys.path.insert(0, _path)
 
 
 st.set_page_config(page_title="Legal Retrieval Assistant", layout="wide")
@@ -95,13 +105,27 @@ st.markdown(
     .actions { display: flex; align-items: center; gap: 17px; }
     .ambiguity { color: var(--brown); font: 600 10px/1 'IBM Plex Mono', monospace; text-decoration: underline; text-underline-offset: 3px; letter-spacing: .05em; white-space: nowrap; }
     .retrieve { display: inline-block; border-radius: 5px; padding: 11px 15px; color: var(--paper); background: var(--brown); font: 700 11px/1 Inter, sans-serif; letter-spacing: .055em; white-space: nowrap; }
-    .suggestions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 17px; }
-    .suggestion { min-height: 106px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: rgba(253,251,248,.58); }
-    .suggestion-label { display: block; margin-bottom: 10px; color: var(--tan); font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .1em; }
-    .suggestion-text { color: var(--brown); font: 500 13px/1.45 Inter, sans-serif; }
+    [data-testid="stForm"] { max-width: 890px; margin: 0 auto; background: var(--paper); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; box-shadow: 0 2px 8px rgba(73,54,40,.035); }
+    [data-testid="stForm"] form { border: 0 !important; padding: 0 !important; }
+    [data-testid="stForm"] [data-testid="stTextArea"] { padding: 0 18px; }
+    [data-testid="stForm"] textarea { min-height: 150px !important; border: 0 !important; background: transparent !important; box-shadow: none !important; color: var(--brown) !important; font: italic 16px/1.55 'Source Serif 4', Georgia, serif !important; resize: none; }
+    [data-testid="stForm"] textarea::placeholder { color: #9C938C !important; opacity: 1; }
+    .form-top { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+    .form-bottom { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 18px 16px; border-top: 1px solid var(--line); }
+    .progress-stepper { max-width: 890px; margin: 22px auto 0; padding: 18px 20px; border: 1px solid var(--line); border-radius: 9px; background: rgba(253,251,248,.65); }
+    .progress-track { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+    .step { position: relative; display: flex; align-items: center; gap: 8px; color: var(--muted); font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; }
+    .step:not(:last-child)::after { content: ''; position: absolute; top: 9px; left: 78px; right: 13px; height: 1px; background: var(--sand); }
+    .step.complete:not(:last-child)::after { background: var(--tan); }
+    .step-dot { position: relative; z-index: 1; display: grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; color: var(--muted); background: var(--paper); border: 1px solid var(--sand); font-size: 11px; }
+    .step.active { color: var(--brown); }
+    .step.active .step-dot { background: var(--brown); border-color: var(--brown); color: var(--paper); }
+    .step.complete { color: var(--brown); }
+    .step.complete .step-dot { background: var(--tan); border-color: var(--tan); color: var(--brown); font-weight: 700; }
+    .step-status { margin: 14px 0 0 27px; color: var(--muted); font: 500 12px/1.4 Inter, sans-serif; }
+    .result-card { max-width: 890px; margin: 22px auto 0; padding: 20px; background: var(--paper); border: 1px solid var(--line); border-radius: 9px; color: var(--brown); line-height: 1.6; }
     @media (max-width: 800px) {
         section[data-testid="stSidebar"] { width: 250px !important; min-width: 250px !important; }
-        .suggestions { grid-template-columns: 1fr; }
         .query-page h1 { font-size: 38px; }
     }
     </style>

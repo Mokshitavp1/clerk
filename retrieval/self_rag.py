@@ -47,7 +47,7 @@ def grade_chunks(chunks, relevance_floor=0.4):
     return filtered_chunks, dropped_count_per_case
 
 
-def get_graded_cases(query, initial_top_k=5, min_cases_required=2):
+def get_graded_cases(query, initial_top_k=5, min_cases_required=2, progress_callback=None):
     """
     Run the full Stage 1 -> Stage 2 -> grading pipeline for a query, with
     one automatic retry (doubled Stage 1 top_k) if too few cases survive
@@ -73,11 +73,13 @@ def get_graded_cases(query, initial_top_k=5, min_cases_required=2):
         stage1_results = get_relevant_cases(query, top_k=top_k)
 
         surviving_cases = []
+        dropped_chunks = 0
         for case in stage1_results:
             case_name = case["case_name"]
 
             chunks = get_relevant_chunks(query, [case_name])
-            graded_chunks, _dropped_count_per_case = grade_chunks(chunks)
+            graded_chunks, dropped_count_per_case = grade_chunks(chunks)
+            dropped_chunks += sum(dropped_count_per_case.values())
 
             if graded_chunks:
                 surviving_cases.append({
@@ -85,6 +87,16 @@ def get_graded_cases(query, initial_top_k=5, min_cases_required=2):
                     "relevance_score": case["relevance_score"],
                     "chunks": graded_chunks,
                 })
+
+        retrying = len(surviving_cases) < min_cases_required and attempt == 0
+        if progress_callback:
+            progress_callback({
+                "attempt": attempt + 1,
+                "shortlisted": len(stage1_results),
+                "surviving": len(surviving_cases),
+                "dropped_chunks": dropped_chunks,
+                "retrying": retrying,
+            })
 
         if len(surviving_cases) >= min_cases_required:
             return {"cases": surviving_cases, "insufficient_cases": False}
