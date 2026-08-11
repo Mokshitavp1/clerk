@@ -57,6 +57,7 @@ st.markdown(
 
     .sidebar-layout { height: 100%; display: grid; grid-template-rows: minmax(0, 1fr) 1px minmax(0, 1fr); }
     .sidebar-pane { min-height: 0; overflow-y: auto; padding: 30px 22px 24px; scrollbar-color: rgba(214,192,179,.45) transparent; }
+    .knowledge-pane { display: flex; flex-direction: column; }
     .sidebar-pane::-webkit-scrollbar, .document-list::-webkit-scrollbar, .history-list::-webkit-scrollbar { width: 5px; }
     .sidebar-pane::-webkit-scrollbar-thumb, .document-list::-webkit-scrollbar-thumb, .history-list::-webkit-scrollbar-thumb { background: rgba(214,192,179,.45); border-radius: 99px; }
     .sidebar-divider { background: rgba(214,192,179,.28); margin: 0 22px; }
@@ -67,7 +68,7 @@ st.markdown(
     .sidebar-rule { border: 0; height: 1px; background: rgba(214,192,179,.28); margin: 24px 0; }
     .document-list { max-height: 112px; overflow-y: auto; margin-top: 12px; padding-right: 5px; }
     .empty-docs { margin: 22px 14px; text-align: center; color: rgba(228,224,225,.74); font: italic 14px/1.5 'Source Serif 4', Georgia, serif; }
-    .build-button { display: block; width: 100%; margin-top: 18px; padding: 13px 14px; background: var(--tan); border-radius: 7px; color: var(--brown); text-align: center; font: 700 11px/1.38 Inter, sans-serif; letter-spacing: .025em; }
+    .build-button { display: block; width: 100%; margin-top: auto; padding: 13px 14px; background: var(--tan); border-radius: 7px; color: var(--brown); text-align: center; font: 700 11px/1.38 Inter, sans-serif; letter-spacing: .025em; }
     .history-heading { margin: 0 0 17px; color: #F5F0E9; font: 700 22px/1.1 'Source Serif 4', Georgia, serif; }
     .history-list { max-height: 220px; overflow-y: auto; margin-top: 12px; padding-right: 5px; }
     .history-item { padding: 0 0 13px; margin-bottom: 13px; border-bottom: 1px solid rgba(214,192,179,.18); }
@@ -115,13 +116,31 @@ st.markdown(
 with st.sidebar:
     st.markdown(
         """
-        <div class="sidebar-title">Knowledge Base</div>
-        <div class="sidebar-label">UPLOAD CASES</div>
-        <div class="dropzone"><span class="upload-pill">↑&nbsp; Upload</span></div>
-        <hr class="sidebar-rule">
-        <div class="sidebar-label">DOCUMENTS</div>
-        <div class="empty-docs">No case PDFs uploaded yet.</div>
-        <div class="build-button">↑ BUILD / UPDATE<br>KNOWLEDGE BASE</div>
+        <div class="sidebar-layout">
+          <section class="sidebar-pane knowledge-pane">
+            <div class="sidebar-title">Knowledge Base</div>
+            <div class="sidebar-label">UPLOAD CASES</div>
+            <div class="dropzone"><span class="upload-pill">&uarr;&nbsp; Upload</span></div>
+            <hr class="sidebar-rule">
+            <div class="sidebar-label">DOCUMENTS</div>
+            <div class="document-list">
+              <div class="empty-docs">No case PDFs uploaded yet.</div>
+            </div>
+            <div class="build-button">&uarr; BUILD / UPDATE<br>KNOWLEDGE BASE</div>
+          </section>
+          <div class="sidebar-divider"></div>
+          <section class="sidebar-pane history-pane">
+            <div class="history-heading">History</div>
+            <div class="sidebar-label">PAST QUERIES</div>
+            <div class="history-list">
+              <article class="history-item"><div class="history-query">Statute of limitations for medical malpractice in New York</div><span class="trust-tag">&sect; VERIFIED</span></article>
+              <article class="history-item"><div class="history-query">Exceptions to the hearsay rule for business records</div><span class="trust-tag">&sect; VERIFIED</span></article>
+              <article class="history-item"><div class="history-query">Recent Supreme Court rulings on Chevron deference</div><span class="trust-tag unverified">&sect; UNVERIFIED</span></article>
+              <article class="history-item"><div class="history-query">Delaware veil-piercing standard and undercapitalization</div><span class="trust-tag insufficient">&sect; INSUFFICIENT</span></article>
+              <article class="history-item"><div class="history-query">Elements required to establish promissory estoppel</div><span class="trust-tag">&sect; VERIFIED</span></article>
+            </div>
+          </section>
+        </div>
         """,
         unsafe_allow_html=True,
     )
