@@ -37,7 +37,7 @@ st.markdown(
         border-right: 1px solid rgba(214, 192, 179, .18);
     }
     section[data-testid="stSidebar"] > div { background: var(--brown) !important; }
-    section[data-testid="stSidebar"] .block-container { padding: 30px 22px 24px !important; }
+    section[data-testid="stSidebar"] .block-container { height: 100%; padding: 0 !important; }
     [data-testid="stSidebarCollapseButton"] { display: none; }
 
     .topbar {
@@ -55,13 +55,27 @@ st.markdown(
     }
     .avatar { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--brown); color: var(--mist); font-size: 15px; }
 
+    .sidebar-layout { height: 100%; display: grid; grid-template-rows: minmax(0, 1fr) 1px minmax(0, 1fr); }
+    .sidebar-pane { min-height: 0; overflow-y: auto; padding: 30px 22px 24px; scrollbar-color: rgba(214,192,179,.45) transparent; }
+    .sidebar-pane::-webkit-scrollbar, .document-list::-webkit-scrollbar, .history-list::-webkit-scrollbar { width: 5px; }
+    .sidebar-pane::-webkit-scrollbar-thumb, .document-list::-webkit-scrollbar-thumb, .history-list::-webkit-scrollbar-thumb { background: rgba(214,192,179,.45); border-radius: 99px; }
+    .sidebar-divider { background: rgba(214,192,179,.28); margin: 0 22px; }
     .sidebar-title { margin: 0 0 28px; color: #F5F0E9; font: 700 22px/1.1 'Source Serif 4', Georgia, serif; }
     .sidebar-label { color: var(--tan); font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .13em; }
     .dropzone { margin-top: 10px; min-height: 126px; display: grid; place-items: center; border: 1px dashed rgba(214,192,179,.64); border-radius: 8px; background: rgba(228,224,225,.07); }
     .upload-pill { display: inline-block; padding: 10px 22px; border-radius: 999px; background: var(--tan); color: var(--brown); font: 700 13px/1 Inter, sans-serif; }
     .sidebar-rule { border: 0; height: 1px; background: rgba(214,192,179,.28); margin: 24px 0; }
-    .empty-docs { margin: 38px 14px 0; text-align: center; color: rgba(228,224,225,.74); font: italic 14px/1.5 'Source Serif 4', Georgia, serif; }
-    .build-button { position: fixed; bottom: 24px; left: 22px; width: 246px; padding: 13px 14px; background: var(--tan); border-radius: 7px; color: var(--brown); text-align: center; font: 700 11px/1.38 Inter, sans-serif; letter-spacing: .025em; }
+    .document-list { max-height: 112px; overflow-y: auto; margin-top: 12px; padding-right: 5px; }
+    .empty-docs { margin: 22px 14px; text-align: center; color: rgba(228,224,225,.74); font: italic 14px/1.5 'Source Serif 4', Georgia, serif; }
+    .build-button { display: block; width: 100%; margin-top: 18px; padding: 13px 14px; background: var(--tan); border-radius: 7px; color: var(--brown); text-align: center; font: 700 11px/1.38 Inter, sans-serif; letter-spacing: .025em; }
+    .history-heading { margin: 0 0 17px; color: #F5F0E9; font: 700 22px/1.1 'Source Serif 4', Georgia, serif; }
+    .history-list { max-height: 220px; overflow-y: auto; margin-top: 12px; padding-right: 5px; }
+    .history-item { padding: 0 0 13px; margin-bottom: 13px; border-bottom: 1px solid rgba(214,192,179,.18); }
+    .history-item:last-child { margin-bottom: 0; }
+    .history-query { margin-bottom: 8px; color: rgba(228,224,225,.9); font: 500 12px/1.46 Inter, sans-serif; }
+    .trust-tag { display: inline-flex; align-items: center; border: 1px solid rgba(214,192,179,.48); border-radius: 4px; padding: 4px 6px; color: var(--sand); font: 600 9px/1 'IBM Plex Mono', monospace; letter-spacing: .04em; }
+    .trust-tag.unverified { color: var(--tan); border-color: rgba(171,136,109,.6); }
+    .trust-tag.insufficient { color: rgba(228,224,225,.6); border-color: rgba(228,224,225,.25); }
 
     .main-shell { min-height: calc(100vh - 68px); padding: 68px 28px 56px; }
     .query-page { max-width: 890px; margin: 0 auto; padding-top: 83px; }
@@ -86,7 +100,6 @@ st.markdown(
     .suggestion-text { color: var(--brown); font: 500 13px/1.45 Inter, sans-serif; }
     @media (max-width: 800px) {
         section[data-testid="stSidebar"] { width: 250px !important; min-width: 250px !important; }
-        .build-button { width: 206px; }
         .suggestions { grid-template-columns: 1fr; }
         .query-page h1 { font-size: 38px; }
     }
