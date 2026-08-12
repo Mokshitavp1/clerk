@@ -356,13 +356,7 @@ with query_section.form("legal-query", clear_on_submit=False):
         label_visibility="collapsed",
         placeholder="E.g., What is the standard for piercing the corporate veil in Delaware regarding undercapitalization?",
     )
-    bottom_left, bottom_middle, bottom_right = st.columns((3.4, 1.8, 1.8))
-    with bottom_left:
-        st.markdown('<span class="nlp">&#9672; NLP ACTIVE</span>', unsafe_allow_html=True)
-    with bottom_middle:
-        st.markdown('<span class="ambiguity">TEST AMBIGUITY</span>', unsafe_allow_html=True)
-    with bottom_right:
-        submitted = st.form_submit_button("RETRIEVE →", use_container_width=True)
+    submitted = st.form_submit_button("RETRIEVE →", use_container_width=True)
 
 progress_slot = st.empty()
 run_request = st.session_state.pop("run_after_warning", None)
