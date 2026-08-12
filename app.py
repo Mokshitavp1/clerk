@@ -138,14 +138,6 @@ st.markdown(
     .actions { display: flex; align-items: center; gap: 17px; }
     .ambiguity { color: var(--brown); font: 600 10px/1 'IBM Plex Mono', monospace; text-decoration: underline; text-underline-offset: 3px; letter-spacing: .05em; white-space: nowrap; }
     .retrieve { display: inline-block; border-radius: 5px; padding: 11px 15px; color: var(--paper); background: var(--brown); font: 700 11px/1 Inter, sans-serif; letter-spacing: .055em; white-space: nowrap; }
-    [data-testid="stForm"] { max-width: 890px; margin: 0 auto; background: var(--paper); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; box-shadow: 0 2px 8px rgba(73,54,40,.035); }
-    [data-testid="stForm"] form { border: 0 !important; padding: 0 !important; }
-    [data-testid="stForm"] [data-testid="stTextArea"] { padding: 0 18px; }
-    [data-testid="stForm"] textarea { min-height: 150px !important; border: 0 !important; background: transparent !important; box-shadow: none !important; color: var(--brown) !important; font: italic 16px/1.55 'Source Serif 4', Georgia, serif !important; resize: none; }
-    [data-testid="stForm"] textarea::placeholder { color: #9C938C !important; opacity: 1; }
-    [data-testid="stForm"] button { width: 100%; padding: 11px 15px; border: 1px solid var(--brown); border-radius: 5px; color: var(--paper); background: var(--brown); font: 700 11px/1 Inter, sans-serif; letter-spacing: .055em; }
-    .mode-picker { max-width: 890px; margin: 0 auto 8px; }
-    .mode-caption { max-width: 890px; margin: -2px auto 12px; color: var(--muted); font-size: 12px; }
     .mode-warning { max-width: 890px; margin: 0 auto 10px; padding: 15px 17px; border: 1px solid rgba(171,136,109,.55); border-left: 4px solid var(--tan); border-radius: 8px; background: #F7F1EB; color: var(--brown); }
     .warning-message { font: 600 14px/1.45 Inter, sans-serif; }
     .warning-explanation { margin-top: 10px; color: var(--muted); font-size: 13px; line-height: 1.5; }
@@ -295,8 +287,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.markdown('<div class="mode-picker">', unsafe_allow_html=True)
-fast_col, deep_col, auto_col, _ = st.columns((1, 1.55, 1, 4.45))
+mode_picker = st.container(key="query-section-mode-picker")
+fast_col, deep_col, auto_col, _ = mode_picker.columns((1, 1.55, 1, 4.45))
 with fast_col:
     st.button(
         "FAST",
@@ -324,7 +316,7 @@ with auto_col:
         on_click=_choose_mode,
         args=("Auto",),
     )
-st.markdown('</div><div class="mode-caption">Not sure? Auto picks for you.</div>', unsafe_allow_html=True)
+mode_picker.markdown('<div class="mode-caption">Not sure? Auto picks for you.</div>', unsafe_allow_html=True)
 selected_mode = st.session_state.selected_mode
 
 pending_warning = st.session_state.pending_warning
@@ -352,7 +344,8 @@ if pending_warning:
         )
     st.markdown('</div>', unsafe_allow_html=True)
 
-with st.form("legal-query", clear_on_submit=False):
+query_section = st.container(key="query-section")
+with query_section.form("legal-query", clear_on_submit=False):
     st.markdown(
         '<div class="form-top"><span class="options">&#9881; OPTIONS</span></div>',
         unsafe_allow_html=True,

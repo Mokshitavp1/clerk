@@ -892,12 +892,40 @@ def inject_theme():
 
 
 def inject_query_interaction_theme():
-    """Small query-screen additions for native button tooltips and mode controls."""
+    """Styles for the keyed query-screen container only."""
     st.markdown(
         """
         <style>
-        /* Streamlit renders a button's `help` text as an accessible hover tooltip. */
-        [data-testid="stTooltipHoverTarget"] { cursor: help; }
+        /* Query styles are deliberately scoped to this keyed Streamlit container. */
+        .st-key-query-section-mode-picker [data-testid="stTooltipHoverTarget"] { cursor: help; }
+        .st-key-query-section-mode-picker { max-width: 890px; margin: 0 auto 8px; }
+        .st-key-query-section-mode-picker [data-testid="stHorizontalBlock"] { align-items: center; }
+        .st-key-query-section-mode-picker .stButton > button {
+            min-height: 34px; padding: 8px 11px; border: 1px solid rgba(73,54,40,.25);
+            border-radius: 5px; color: var(--muted); background: transparent; box-shadow: none;
+            font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; transform: none;
+        }
+        .st-key-query-section-mode-picker .stButton > button[kind="primary"] {
+            color: var(--paper); background: var(--brown); border-color: var(--brown);
+        }
+        .st-key-query-section-mode-picker .mode-caption { margin: -2px 0 12px; color: var(--muted); font-size: 12px; }
+        .st-key-query-section [data-testid="stForm"] {
+            max-width: 890px; margin: 0 auto; background: var(--paper); border: 1px solid var(--line);
+            border-radius: 11px; overflow: hidden; box-shadow: 0 2px 8px rgba(73,54,40,.035);
+        }
+        .st-key-query-section [data-testid="stForm"] form { border: 0 !important; padding: 0 !important; }
+        .st-key-query-section [data-testid="stForm"] [data-testid="stTextArea"] { padding: 0 18px; }
+        .st-key-query-section [data-testid="stForm"] [data-baseweb="textarea"],
+        .st-key-query-section [data-testid="stForm"] textarea { background: var(--paper) !important; border: 0 !important; box-shadow: none !important; }
+        .st-key-query-section [data-testid="stForm"] textarea {
+            min-height: 150px !important; color: var(--brown) !important;
+            font: italic 16px/1.55 'Source Serif 4', Georgia, serif !important; resize: none;
+        }
+        .st-key-query-section [data-testid="stForm"] textarea::placeholder { color: #9C938C !important; opacity: 1; }
+        .st-key-query-section [data-testid="stForm"] [data-testid="stFormSubmitButton"] button {
+            width: 100%; padding: 11px 15px; border: 1px solid var(--brown); border-radius: 5px;
+            color: var(--paper); background: var(--brown); font: 700 11px/1 Inter, sans-serif; letter-spacing: .055em;
+        }
         </style>
         """,
         unsafe_allow_html=True,
