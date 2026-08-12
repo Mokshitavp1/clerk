@@ -500,82 +500,10 @@ section[data-testid="stSidebar"] .stButton > button:hover {
 }
 
 /* ─── Dynamic Mode Selection buttons styling via Sibling selectors ─── */
-.mode-anchor + div[data-testid="stHorizontalBlock"] {
-    background-color: var(--white);
-    border: 1.5px solid var(--border);
-    border-top: none;
-    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-    padding: 1.8rem 1.6rem 1.2rem !important;
-    box-shadow: var(--shadow-md);
-    margin-bottom: 1.5rem;
-}
-
 /* Custom styled st.button inside horizontal columns to look like large mode cards */
-.mode-anchor + div[data-testid="stHorizontalBlock"] div[data-testid="column"] button {
-    width: 100% !important;
-    height: 130px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border-radius: var(--radius-md) !important;
-    background-color: var(--cream2) !important;
-    border: 1.5px solid var(--border) !important;
-    color: var(--dark) !important;
-    padding: 1.2rem !important;
-    box-shadow: var(--shadow-sm) !important;
-    transition: var(--transition) !important;
-    position: relative;
-    overflow: hidden;
-}
-.mode-anchor + div[data-testid="stHorizontalBlock"] div[data-testid="column"] button::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--tan);
-    transition: var(--transition);
-}
-
 /* Hover effects for mode buttons */
-.mode-anchor + div[data-testid="stHorizontalBlock"] div[data-testid="column"] button:hover {
-    transform: translateY(-5px) !important;
-    background-color: var(--white) !important;
-    border-color: var(--brown) !important;
-    box-shadow: var(--shadow-lg) !important;
-}
-.mode-anchor + div[data-testid="stHorizontalBlock"] div[data-testid="column"] button:hover::before {
-    background: var(--brown);
-}
-
 /* Selected states triggered by state classes on the anchor */
-.mode-anchor.selected-fast + div[data-testid="stHorizontalBlock"] div[data-testid="column"]:nth-child(1) button,
-.mode-anchor.selected-deep + div[data-testid="stHorizontalBlock"] div[data-testid="column"]:nth-child(2) button,
-.mode-anchor.selected-auto + div[data-testid="stHorizontalBlock"] div[data-testid="column"]:nth-child(3) button {
-    background-color: var(--white) !important;
-    border-color: var(--brown) !important;
-    border-width: 2px !important;
-    box-shadow: var(--shadow-lg) !important;
-}
-.mode-anchor.selected-fast + div[data-testid="stHorizontalBlock"] div[data-testid="column"]:nth-child(1) button::before,
-.mode-anchor.selected-deep + div[data-testid="stHorizontalBlock"] div[data-testid="column"]:nth-child(2) button::before,
-.mode-anchor.selected-auto + div[data-testid="stHorizontalBlock"] div[data-testid="column"]:nth-child(3) button::before {
-    background: var(--brown);
-    height: 5px;
-}
-
 /* Move the st.caption description inside the cards using layout tweaks or keep standard caption styles */
-.mode-anchor + div[data-testid="stHorizontalBlock"] div[data-testid="column"] small {
-    display: block;
-    text-align: center;
-    margin-top: 0.6rem;
-    font-size: 0.72rem !important;
-    color: var(--muted) !important;
-    line-height: 1.4;
-}
-
 /* ─── Citation stamps ────────────────────────────────────────── */
 .citations-row {
     display: flex;
@@ -871,13 +799,6 @@ section[data-testid="stSidebar"] .stButton > button:hover {
     }
     .works-grid {
         grid-template-columns: 1fr;
-    }
-    .mode-anchor + div[data-testid="stHorizontalBlock"] {
-        padding: 1rem !important;
-    }
-    .mode-anchor + div[data-testid="stHorizontalBlock"] div[data-testid="column"] button {
-        height: 100px !important;
-        margin-bottom: 0.5rem;
     }
 }
 </style>
