@@ -8,7 +8,7 @@ import streamlit as st
 
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-for _folder in ("retrieval", "generation"):
+for _folder in ("retrieval", "generation", "routing"):
     _path = os.path.join(PROJECT_ROOT, _folder)
     if _path not in sys.path:
         sys.path.insert(0, _path)
@@ -112,6 +112,17 @@ st.markdown(
     [data-testid="stForm"] textarea { min-height: 150px !important; border: 0 !important; background: transparent !important; box-shadow: none !important; color: var(--brown) !important; font: italic 16px/1.55 'Source Serif 4', Georgia, serif !important; resize: none; }
     [data-testid="stForm"] textarea::placeholder { color: #9C938C !important; opacity: 1; }
     [data-testid="stForm"] button { width: 100%; padding: 11px 15px; border: 1px solid var(--brown); border-radius: 5px; color: var(--paper); background: var(--brown); font: 700 11px/1 Inter, sans-serif; letter-spacing: .055em; }
+    .mode-picker { max-width: 890px; margin: 0 auto; }
+    .mode-picker [data-testid="stRadio"] { margin: 0 0 8px; }
+    .mode-picker [data-testid="stRadio"] > div { gap: 5px; }
+    .mode-picker [data-testid="stRadio"] label { margin: 0; padding: 8px 11px; border: 1px solid rgba(73,54,40,.25); border-radius: 5px; color: var(--muted); font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; }
+    .mode-picker [data-testid="stRadio"] label:has(input:checked) { color: var(--paper); background: var(--brown); border-color: var(--brown); }
+    .mode-picker [data-testid="stRadio"] input { display: none; }
+    .mode-warning { max-width: 890px; margin: 0 auto 10px; padding: 15px 17px; border: 1px solid rgba(171,136,109,.55); border-left: 4px solid var(--tan); border-radius: 8px; background: #F7F1EB; color: var(--brown); }
+    .warning-message { font: 600 14px/1.45 Inter, sans-serif; }
+    .warning-explanation { margin-top: 10px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .warning-actions { max-width: 890px; margin: -2px auto 13px; }
+    .warning-actions button { width: 100%; min-height: 38px; border-radius: 5px; font: 600 11px/1.2 Inter, sans-serif; }
     .form-top { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
     .form-bottom { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 18px 16px; border-top: 1px solid var(--line); }
     .progress-stepper { max-width: 890px; margin: 22px auto 0; padding: 18px 20px; border: 1px solid var(--line); border-radius: 9px; background: rgba(253,251,248,.65); }
@@ -185,7 +196,7 @@ def _render_progress(slot, active_step, status):
     )
 
 
-def _run_query(question, progress_slot):
+def _run_query(question, progress_slot, shortlisted_cases=None):
     """Run the Retrieve → Grade → Verify contract and update its live status."""
     from stage1_case_retrieval import get_relevant_cases
     from stage2_chunk_retrieval import get_relevant_chunks
@@ -193,7 +204,7 @@ def _run_query(question, progress_slot):
     from verifier import generate_verified_answer
 
     _render_progress(progress_slot, 0, "Searching the knowledge base for relevant cases…")
-    shortlisted_cases = get_relevant_cases(question)
+    shortlisted_cases = shortlisted_cases if shortlisted_cases is not None else get_relevant_cases(question)
     case_names = [case["case_name"] for case in shortlisted_cases]
     retrieved_chunks = get_relevant_chunks(question, case_names)
 
