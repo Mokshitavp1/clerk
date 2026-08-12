@@ -16,6 +16,35 @@ for _folder in ("retrieval", "generation", "routing"):
 
 st.set_page_config(page_title="Legal Retrieval Assistant", layout="wide")
 
+if "selected_mode" not in st.session_state:
+    st.session_state.selected_mode = "Fast"
+if "query_draft" not in st.session_state:
+    st.session_state.query_draft = ""
+if "pending_warning" not in st.session_state:
+    st.session_state.pending_warning = None
+
+
+def _clear_warning_for_non_fast_mode():
+    """Auto/Deep already address Fast mode's ambiguity limitation."""
+    if st.session_state.selected_mode != "Fast":
+        st.session_state.pending_warning = None
+
+
+def _switch_to_deep_thinking():
+    st.session_state.selected_mode = "Deep Thinking"
+    st.session_state.pending_warning = None
+
+
+def _continue_with_fast():
+    warning = st.session_state.pending_warning
+    if warning:
+        st.session_state.run_after_warning = {
+            "query": warning["query"],
+            "cases": warning["cases"],
+        }
+    st.session_state.pending_warning = None
+
+
 st.markdown(
     """
     <style>
@@ -196,16 +225,22 @@ def _render_progress(slot, active_step, status):
     )
 
 
-def _run_query(question, progress_slot, shortlisted_cases=None):
+def _run_query(question, progress_slot, mode, shortlisted_cases=None):
     """Run the Retrieve → Grade → Verify contract and update its live status."""
     from stage1_case_retrieval import get_relevant_cases
     from stage2_chunk_retrieval import get_relevant_chunks
     from self_rag import get_graded_cases
     from verifier import generate_verified_answer
+    from router import decide_mode
 
     _render_progress(progress_slot, 0, "Searching the knowledge base for relevant cases…")
     shortlisted_cases = shortlisted_cases if shortlisted_cases is not None else get_relevant_cases(question)
-    case_names = [case["case_name"] for case in shortlisted_cases]
+    resolved_mode = decide_mode(shortlisted_cases) if mode == "Auto" else mode.lower()
+    case_names = (
+        [shortlisted_cases[0]["case_name"]]
+        if resolved_mode == "fast" and shortlisted_cases
+        else [case["case_name"] for case in shortlisted_cases]
+    )
     retrieved_chunks = get_relevant_chunks(question, case_names)
 
     _render_progress(
@@ -226,12 +261,15 @@ def _run_query(question, progress_slot, shortlisted_cases=None):
             )
         _render_progress(progress_slot, 1, message)
 
-    graded = get_graded_cases(question, progress_callback=grade_status)
-    if graded["insufficient_cases"]:
-        progress_slot.empty()
-        return {"answer": "No sufficient, relevant cases were found in the uploaded documents.", "verified": False}
-
-    chunks = [chunk for case in graded["cases"] for chunk in case["chunks"]]
+    if resolved_mode == "fast":
+        _render_progress(progress_slot, 1, "Fast mode will use the highest-ranked case only.")
+        chunks = retrieved_chunks
+    else:
+        graded = get_graded_cases(question, progress_callback=grade_status)
+        if graded["insufficient_cases"]:
+            progress_slot.empty()
+            return {"answer": "No sufficient, relevant cases were found in the uploaded documents.", "verified": False}
+        chunks = [chunk for case in graded["cases"] for chunk in case["chunks"]]
     _render_progress(progress_slot, 2, "Generating a grounded response and checking its citations…")
 
     def verify_status(signal):
@@ -258,13 +296,53 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+mode_labels = {"Fast": "FAST", "Deep Thinking": "DEEP THINKING", "Auto": "AUTO"}
+with st.container():
+    st.markdown('<div class="mode-picker">', unsafe_allow_html=True)
+    selected_mode = st.radio(
+        "Retrieval mode",
+        options=("Fast", "Deep Thinking", "Auto"),
+        key="selected_mode",
+        horizontal=True,
+        label_visibility="collapsed",
+        format_func=lambda mode: mode_labels[mode],
+        on_change=_clear_warning_for_non_fast_mode,
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+pending_warning = st.session_state.pending_warning
+if pending_warning:
+    st.markdown(
+        f'<section class="mode-warning"><div class="warning-message">{html.escape(pending_warning["message"])}</div>'
+        f'<details><summary>Explain why</summary><div class="warning-explanation">{html.escape(pending_warning["explain_why"])}</div></details></section>',
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="warning-actions">', unsafe_allow_html=True)
+    switch_col, continue_col = st.columns(2)
+    with switch_col:
+        st.button(
+            "Switch to Deep Thinking",
+            use_container_width=True,
+            key="switch-mode",
+            on_click=_switch_to_deep_thinking,
+        )
+    with continue_col:
+        st.button(
+            "Continue with Fast anyway",
+            use_container_width=True,
+            key="continue-mode",
+            on_click=_continue_with_fast,
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
+
 with st.form("legal-query", clear_on_submit=False):
     st.markdown(
-        '<div class="form-top"><div class="mode-control"><span class="mode active">FAST</span><span class="mode">DEEP THINKING</span><span class="mode">AUTO</span></div><span class="options">&#9881; OPTIONS</span></div>',
+        '<div class="form-top"><span class="options">&#9881; OPTIONS</span></div>',
         unsafe_allow_html=True,
     )
     question = st.text_area(
         "Legal question",
+        key="query_draft",
         label_visibility="collapsed",
         placeholder="E.g., What is the standard for piercing the corporate veil in Delaware regarding undercapitalization?",
     )
@@ -277,9 +355,29 @@ with st.form("legal-query", clear_on_submit=False):
         submitted = st.form_submit_button("RETRIEVE →", use_container_width=True)
 
 progress_slot = st.empty()
+run_request = st.session_state.pop("run_after_warning", None)
 if submitted and question.strip():
+    from router import build_warning
+    from stage1_case_retrieval import get_relevant_cases
+
+    shortlist = get_relevant_cases(question.strip())
+    warning = build_warning(shortlist)
+    # The warning contract describes a Fast-mode limitation. Auto already
+    # resolves that choice itself, while Deep Thinking addresses it directly.
+    if selected_mode == "Fast" and warning:
+        st.session_state.pending_warning = {
+            **warning,
+            "query": question.strip(),
+            "cases": shortlist,
+        }
+        st.rerun()
+    run_request = {"query": question.strip(), "cases": shortlist}
+
+if run_request:
     with st.spinner(""):
-        st.session_state.last_query_result = _run_query(question.strip(), progress_slot)
+        st.session_state.last_query_result = _run_query(
+            run_request["query"], progress_slot, selected_mode, run_request["cases"]
+        )
 
 if submitted and not question.strip():
     st.warning("Enter a legal question before retrieving cases.")
