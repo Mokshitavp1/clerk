@@ -5,6 +5,7 @@ import os
 import sys
 
 import streamlit as st
+from theme import inject_query_interaction_theme
 
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -15,6 +16,7 @@ for _folder in ("retrieval", "generation", "routing"):
 
 
 st.set_page_config(page_title="Legal Retrieval Assistant", layout="wide")
+inject_query_interaction_theme()
 
 if "selected_mode" not in st.session_state:
     st.session_state.selected_mode = "Fast"
@@ -24,9 +26,10 @@ if "pending_warning" not in st.session_state:
     st.session_state.pending_warning = None
 
 
-def _clear_warning_for_non_fast_mode():
-    """Auto/Deep already address Fast mode's ambiguity limitation."""
-    if st.session_state.selected_mode != "Fast":
+def _choose_mode(mode):
+    """Persist the native mode control and clear irrelevant Fast warnings."""
+    st.session_state.selected_mode = mode
+    if mode != "Fast":
         st.session_state.pending_warning = None
 
 
@@ -141,12 +144,8 @@ st.markdown(
     [data-testid="stForm"] textarea { min-height: 150px !important; border: 0 !important; background: transparent !important; box-shadow: none !important; color: var(--brown) !important; font: italic 16px/1.55 'Source Serif 4', Georgia, serif !important; resize: none; }
     [data-testid="stForm"] textarea::placeholder { color: #9C938C !important; opacity: 1; }
     [data-testid="stForm"] button { width: 100%; padding: 11px 15px; border: 1px solid var(--brown); border-radius: 5px; color: var(--paper); background: var(--brown); font: 700 11px/1 Inter, sans-serif; letter-spacing: .055em; }
-    .mode-picker { max-width: 890px; margin: 0 auto; }
-    .mode-picker [data-testid="stRadio"] { margin: 0 0 8px; }
-    .mode-picker [data-testid="stRadio"] > div { gap: 5px; }
-    .mode-picker [data-testid="stRadio"] label { margin: 0; padding: 8px 11px; border: 1px solid rgba(73,54,40,.25); border-radius: 5px; color: var(--muted); font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; }
-    .mode-picker [data-testid="stRadio"] label:has(input:checked) { color: var(--paper); background: var(--brown); border-color: var(--brown); }
-    .mode-picker [data-testid="stRadio"] input { display: none; }
+    .mode-picker { max-width: 890px; margin: 0 auto 8px; }
+    .mode-caption { max-width: 890px; margin: -2px auto 12px; color: var(--muted); font-size: 12px; }
     .mode-warning { max-width: 890px; margin: 0 auto 10px; padding: 15px 17px; border: 1px solid rgba(171,136,109,.55); border-left: 4px solid var(--tan); border-radius: 8px; background: #F7F1EB; color: var(--brown); }
     .warning-message { font: 600 14px/1.45 Inter, sans-serif; }
     .warning-explanation { margin-top: 10px; color: var(--muted); font-size: 13px; line-height: 1.5; }
@@ -296,19 +295,37 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-mode_labels = {"Fast": "FAST", "Deep Thinking": "DEEP THINKING", "Auto": "AUTO"}
-with st.container():
-    st.markdown('<div class="mode-picker">', unsafe_allow_html=True)
-    selected_mode = st.radio(
-        "Retrieval mode",
-        options=("Fast", "Deep Thinking", "Auto"),
-        key="selected_mode",
-        horizontal=True,
-        label_visibility="collapsed",
-        format_func=lambda mode: mode_labels[mode],
-        on_change=_clear_warning_for_non_fast_mode,
+st.markdown('<div class="mode-picker">', unsafe_allow_html=True)
+fast_col, deep_col, auto_col, _ = st.columns((1, 1.55, 1, 4.45))
+with fast_col:
+    st.button(
+        "FAST",
+        key="mode-fast",
+        type="primary" if st.session_state.selected_mode == "Fast" else "secondary",
+        help="Uses the single top-matched case for a quick answer.",
+        on_click=_choose_mode,
+        args=("Fast",),
     )
-    st.markdown('</div>', unsafe_allow_html=True)
+with deep_col:
+    st.button(
+        "DEEP THINKING",
+        key="mode-deep",
+        type="primary" if st.session_state.selected_mode == "Deep Thinking" else "secondary",
+        help="Searches and compares multiple cases instead of relying on one match.",
+        on_click=_choose_mode,
+        args=("Deep Thinking",),
+    )
+with auto_col:
+    st.button(
+        "AUTO",
+        key="mode-auto",
+        type="primary" if st.session_state.selected_mode == "Auto" else "secondary",
+        help="Chooses Fast when one case clearly dominates, or Deep Thinking when top matches are close.",
+        on_click=_choose_mode,
+        args=("Auto",),
+    )
+st.markdown('</div><div class="mode-caption">Not sure? Auto picks for you.</div>', unsafe_allow_html=True)
+selected_mode = st.session_state.selected_mode
 
 pending_warning = st.session_state.pending_warning
 if pending_warning:

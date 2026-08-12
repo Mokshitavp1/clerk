@@ -891,6 +891,19 @@ def inject_theme():
     st.markdown(CSS, unsafe_allow_html=True)
 
 
+def inject_query_interaction_theme():
+    """Small query-screen additions for native button tooltips and mode controls."""
+    st.markdown(
+        """
+        <style>
+        /* Streamlit renders a button's `help` text as an accessible hover tooltip. */
+        [data-testid="stTooltipHoverTarget"] { cursor: help; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 # ─── Render helpers ──────────────────────────────────────────────────────────
 
 def render_hero_section():
