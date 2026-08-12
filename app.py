@@ -9,7 +9,7 @@ from theme import inject_query_interaction_theme
 
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-for _folder in ("retrieval", "generation", "routing"):
+for _folder in ("retrieval", "generation", "routing", "ingestion"):
     _path = os.path.join(PROJECT_ROOT, _folder)
     if _path not in sys.path:
         sys.path.insert(0, _path)
@@ -46,6 +46,31 @@ def _continue_with_fast():
             "cases": warning["cases"],
         }
     st.session_state.pending_warning = None
+
+
+def _indexed_case_names():
+    """Return the case names currently represented by the persisted index."""
+    try:
+        import chromadb
+        from ingest import CASES_COLLECTION, CHROMA_PATH
+
+        collection = chromadb.PersistentClient(path=CHROMA_PATH).get_collection(CASES_COLLECTION)
+        return {metadata["case_name"] for metadata in collection.get().get("metadatas", [])}
+    except Exception:
+        return set()
+
+
+def _build_uploaded_cases(uploaded_files):
+    """Persist and index the selected PDFs only when the user requests it."""
+    from ingest import replace_case
+
+    os.makedirs(os.path.join(PROJECT_ROOT, "cases"), exist_ok=True)
+    for uploaded_file in uploaded_files:
+        filename = os.path.basename(uploaded_file.name)
+        destination = os.path.join(PROJECT_ROOT, "cases", filename)
+        with open(destination, "wb") as case_file:
+            case_file.write(uploaded_file.getvalue())
+        replace_case(destination)
 
 
 st.markdown(
@@ -105,12 +130,15 @@ st.markdown(
     .sidebar-pane::-webkit-scrollbar-thumb, .document-list::-webkit-scrollbar-thumb, .history-list::-webkit-scrollbar-thumb { background: rgba(214,192,179,.45); border-radius: 99px; }
     .sidebar-divider { background: rgba(214,192,179,.28); margin: 0 22px; }
     .sidebar-title { margin: 0 0 28px; color: #F5F0E9; font: 700 22px/1.1 'Source Serif 4', Georgia, serif; }
+    .knowledge-steps { margin: -17px 0 20px; color: rgba(228,224,225,.62); font: 500 11px/1.45 Inter, sans-serif; }
     .sidebar-label { color: var(--tan); font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .13em; }
     .dropzone { margin-top: 10px; min-height: 126px; display: grid; place-items: center; border: 1px dashed rgba(214,192,179,.64); border-radius: 8px; background: rgba(228,224,225,.07); }
     .upload-pill { display: inline-block; padding: 10px 22px; border-radius: 999px; background: var(--tan); color: var(--brown); font: 700 13px/1 Inter, sans-serif; }
     .sidebar-rule { border: 0; height: 1px; background: rgba(214,192,179,.28); margin: 24px 0; }
     .document-list { max-height: 112px; overflow-y: auto; margin-top: 12px; padding-right: 5px; }
     .empty-docs { margin: 22px 14px; text-align: center; color: rgba(228,224,225,.74); font: italic 14px/1.5 'Source Serif 4', Georgia, serif; }
+    .document-name { padding: 8px 0; border-bottom: 1px solid rgba(214,192,179,.18); color: rgba(228,224,225,.9); font-size: 12px; overflow-wrap: anywhere; }
+    .sync-status { display: inline-block; margin: 12px 0 16px; padding: 5px 7px; border: 1px solid rgba(214,192,179,.38); border-radius: 4px; color: var(--sand); font: 600 9px/1 'IBM Plex Mono', monospace; letter-spacing: .04em; }
     .build-button { display: block; width: 100%; margin-top: auto; padding: 13px 14px; background: var(--tan); border-radius: 7px; color: var(--brown); text-align: center; font: 700 11px/1.38 Inter, sans-serif; letter-spacing: .025em; }
     .history-heading { margin: 0 0 17px; color: #F5F0E9; font: 700 22px/1.1 'Source Serif 4', Georgia, serif; }
     .history-list { max-height: 220px; overflow-y: auto; margin-top: 12px; padding-right: 5px; }
@@ -176,14 +204,11 @@ with st.sidebar:
         <div class="sidebar-layout">
           <section class="sidebar-pane knowledge-pane">
             <div class="sidebar-title">Knowledge Base</div>
+            <p class="knowledge-steps">1. Upload PDFs &rarr; 2. Build/Update &rarr; 3. Ask questions</p>
             <div class="sidebar-label">UPLOAD CASES</div>
-            <div class="dropzone"><span class="upload-pill">&uarr;&nbsp; Upload</span></div>
+            <div class="dropzone"><span class="upload-pill">&uarr;&nbsp; Upload PDFs below</span></div>
             <hr class="sidebar-rule">
             <div class="sidebar-label">DOCUMENTS</div>
-            <div class="document-list">
-              <div class="empty-docs">No case PDFs uploaded yet.</div>
-            </div>
-            <div class="build-button">&uarr; BUILD / UPDATE<br>KNOWLEDGE BASE</div>
           </section>
           <div class="sidebar-divider"></div>
           <section class="sidebar-pane history-pane">
@@ -201,6 +226,37 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
+    uploaded_cases = st.file_uploader(
+        "Upload case PDFs",
+        type="pdf",
+        accept_multiple_files=True,
+        label_visibility="collapsed",
+        key="case-pdf-upload",
+    )
+    uploaded_names = {os.path.splitext(os.path.basename(case.name))[0] for case in uploaded_cases}
+    indexed_names = _indexed_case_names()
+    pending_names = uploaded_names - indexed_names
+    if uploaded_cases:
+        st.markdown(
+            '<div class="document-list">' + "".join(
+                f'<div class="document-name">{html.escape(case.name)}</div>' for case in uploaded_cases
+            ) + '</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown('<div class="empty-docs">No case PDFs uploaded yet.</div>', unsafe_allow_html=True)
+    if pending_names:
+        count = len(pending_names)
+        noun = "document" if count == 1 else "documents"
+        st.markdown(f'<div class="sync-status">{count} new {noun} not yet indexed</div>', unsafe_allow_html=True)
+    if st.button("BUILD / UPDATE KNOWLEDGE BASE", key="build-knowledge-base", use_container_width=True):
+        if not uploaded_cases:
+            st.info("Upload one or more PDFs before rebuilding the knowledge base.")
+        else:
+            with st.spinner("Building knowledge base…"):
+                _build_uploaded_cases(uploaded_cases)
+            st.success("Knowledge base updated.")
+            st.rerun()
 
 def _render_progress(slot, active_step, status):
     """Render the transient pipeline indicator with one current status line."""
