@@ -822,12 +822,12 @@ def inject_query_interaction_theme():
         .st-key-query-section-mode-picker { max-width: 890px; margin: 0 auto 8px; }
         .st-key-query-section-mode-picker [data-testid="stHorizontalBlock"] { align-items: center; }
         .st-key-query-section-mode-picker .stButton > button {
-            min-height: 34px; padding: 8px 11px; border: 1px solid rgba(73,54,40,.25);
-            border-radius: 5px; color: var(--muted); background: transparent; box-shadow: none;
+            min-height: 34px; padding: 8px 11px; border: 1px solid #AB886D;
+            border-radius: 5px; color: #AB886D; background: transparent; box-shadow: none;
             font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; transform: none;
         }
         .st-key-query-section-mode-picker .stButton > button[kind="primary"] {
-            color: var(--paper); background: var(--brown); border-color: var(--brown);
+            color: var(--paper); background: #AB886D; border-color: #AB886D; font-weight: 700;
         }
         .st-key-query-section-mode-picker .mode-caption { margin: -2px 0 12px; color: var(--muted); font-size: 12px; }
         .st-key-query-section [data-testid="stForm"] {
