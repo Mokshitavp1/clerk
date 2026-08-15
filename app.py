@@ -135,7 +135,10 @@ st.markdown(
     .dropzone { margin-top: 10px; min-height: 90px; display: grid; place-items: center; border: 1px dashed rgba(214,192,179,.64); border-radius: 8px; background: rgba(228,224,225,.07); }
     .upload-pill { display: inline-block; padding: 10px 22px; border-radius: 999px; background: var(--tan); color: var(--brown); font: 700 13px/1 Inter, sans-serif; }
 
-    /* ── Sidebar file-uploader: restyle as dashed dropzone ───────────── */
+    /* ── Sidebar tweaks ───────────── */
+    section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
+        padding-top: 0 !important;
+    }
     section[data-testid="stSidebar"] [data-testid="stFileUploader"] {
         padding: 0 !important;
     }
