@@ -259,6 +259,8 @@ st.markdown(
     .step.complete .step-dot { background: var(--tan); border-color: var(--tan); color: var(--brown); font-weight: 700; }
     .step-status { margin: 14px 0 0 27px; color: var(--muted); font: 500 12px/1.4 Inter, sans-serif; }
     .result-card { max-width: 890px; margin: 22px auto 0; padding: 20px; background: var(--paper); border: 1px solid var(--line); border-radius: 9px; color: var(--brown); line-height: 1.6; }
+    /* hide Streamlit's "Press Enter to submit" hint — query form only */
+    .st-key-query-section [data-testid="InputInstructions"] { display: none !important; }
     @media (max-width: 800px) {
         section[data-testid="stSidebar"] { width: 250px !important; min-width: 250px !important; }
         .query-page h1 { font-size: 38px; }
