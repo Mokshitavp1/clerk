@@ -124,7 +124,7 @@ st.markdown(
     .avatar { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--brown); color: var(--mist); font-size: 15px; }
 
     .sidebar-layout { height: 100%; display: grid; grid-template-rows: minmax(0, 1fr) 1px minmax(0, 1fr); }
-    .sidebar-pane { min-height: 0; overflow-y: auto; padding: 30px 22px 24px; scrollbar-color: rgba(214,192,179,.45) transparent; }
+    .sidebar-pane { min-height: 0; overflow-y: auto; padding: 20px 22px 24px; scrollbar-color: rgba(214,192,179,.45) transparent; }
     .knowledge-pane { display: flex; flex-direction: column; }
     .sidebar-pane::-webkit-scrollbar, .document-list::-webkit-scrollbar, .history-list::-webkit-scrollbar { width: 5px; }
     .sidebar-pane::-webkit-scrollbar-thumb, .document-list::-webkit-scrollbar-thumb, .history-list::-webkit-scrollbar-thumb { background: rgba(214,192,179,.45); border-radius: 99px; }
@@ -132,7 +132,7 @@ st.markdown(
     .sidebar-title { margin: 0 0 28px; color: #F5F0E9; font: 700 22px/1.1 'Source Serif 4', Georgia, serif; }
     .knowledge-steps { margin: -17px 0 20px; color: rgba(228,224,225,.88); font: 500 11px/1.45 Inter, sans-serif; }
     .sidebar-label { color: var(--tan); font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .13em; }
-    .dropzone { margin-top: 10px; min-height: 126px; display: grid; place-items: center; border: 1px dashed rgba(214,192,179,.64); border-radius: 8px; background: rgba(228,224,225,.07); }
+    .dropzone { margin-top: 10px; min-height: 90px; display: grid; place-items: center; border: 1px dashed rgba(214,192,179,.64); border-radius: 8px; background: rgba(228,224,225,.07); }
     .upload-pill { display: inline-block; padding: 10px 22px; border-radius: 999px; background: var(--tan); color: var(--brown); font: 700 13px/1 Inter, sans-serif; }
 
     /* ── Sidebar file-uploader: restyle as dashed dropzone ───────────── */
@@ -147,6 +147,8 @@ st.markdown(
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
+        justify-content: center !important;
+        min-height: 90px !important;
         gap: 10px !important;
         transition: border-color .18s, background .18s;
     }
@@ -165,23 +167,7 @@ st.markdown(
     section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"] > div > small {
         display: none !important;
     }
-    /* custom icon + label above the button */
-    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"]::before {
-        content: '↑';
-        display: block;
-        font-size: 22px;
-        line-height: 1;
-        color: rgba(214,192,179,.70);
-        text-align: center;
-    }
-    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"]::after {
-        content: 'Drag & drop PDFs here';
-        display: block;
-        font: 500 11px/1.4 Inter, sans-serif;
-        color: rgba(228,224,225,.52);
-        text-align: center;
-        margin-top: 4px;
-    }
+    /* custom icon + label above the button removed for a cleaner look */
     /* style the Browse button to match the sidebar palette */
     section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button {
         background: var(--tan) !important;
@@ -236,7 +222,7 @@ st.markdown(
     .main-shell { padding: 68px 28px 0; }
     .query-page { max-width: 890px; margin: 0 auto; padding-top: 44px; }
     .eyebrow { text-align: center; color: var(--tan); font: 600 11px/1 'IBM Plex Mono', monospace; letter-spacing: .13em; }
-    .query-page h1 { margin: 13px 0 13px; color: var(--brown); text-align: center; font: 700 45px/1.08 'Source Serif 4', Georgia, serif; letter-spacing: -.035em; }
+    .query-page h1 { margin: 13px 0 8px; color: var(--brown); text-align: center; font: 700 45px/1.08 'Source Serif 4', Georgia, serif; letter-spacing: -.035em; }
     .intro { max-width: 635px; margin: 0 auto 24px; text-align: center; color: var(--muted); font-size: 15px; line-height: 1.65; }
     .query-card { background: var(--paper); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; box-shadow: 0 2px 8px rgba(73,54,40,.035); }
     .card-top, .card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; }
@@ -292,7 +278,6 @@ with st.sidebar:
         """
         <div class="sidebar-title" style="padding: 30px 22px 0; margin-bottom: 6px;">Knowledge Base</div>
         <p class="knowledge-steps" style="padding: 0 22px; margin-bottom: 14px;">1. Upload PDFs &rarr; 2. Build&#47;Update &rarr; 3. Ask questions</p>
-        <div class="sidebar-label" style="padding: 0 22px;">UPLOAD CASES</div>
         """,
         unsafe_allow_html=True,
     )
@@ -455,7 +440,7 @@ with fast_col:
         on_click=_choose_mode,
         args=("Fast",),
     )
-    st.markdown('<div class="btn-caption">Single top match</div>', unsafe_allow_html=True)
+    st.markdown('<div class="btn-caption">Top match only</div>', unsafe_allow_html=True)
 with deep_col:
     st.button(
         "DEEP THINKING",
@@ -476,7 +461,6 @@ with auto_col:
         args=("Auto",),
     )
     st.markdown('<div class="btn-caption">Picks for you</div>', unsafe_allow_html=True)
-mode_picker.markdown('<div class="mode-caption">Not sure? Auto picks for you.</div>', unsafe_allow_html=True)
 selected_mode = st.session_state.selected_mode
 
 pending_warning = st.session_state.pending_warning
