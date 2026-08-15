@@ -134,6 +134,80 @@ st.markdown(
     .sidebar-label { color: var(--tan); font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .13em; }
     .dropzone { margin-top: 10px; min-height: 126px; display: grid; place-items: center; border: 1px dashed rgba(214,192,179,.64); border-radius: 8px; background: rgba(228,224,225,.07); }
     .upload-pill { display: inline-block; padding: 10px 22px; border-radius: 999px; background: var(--tan); color: var(--brown); font: 700 13px/1 Inter, sans-serif; }
+
+    /* ── Sidebar file-uploader: restyle as dashed dropzone ───────────── */
+    section[data-testid="stSidebar"] [data-testid="stFileUploader"] {
+        padding: 0 !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
+        border: 1.5px dashed rgba(214,192,179,.60) !important;
+        border-radius: 8px !important;
+        background: rgba(228,224,225,.06) !important;
+        padding: 22px 14px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 10px !important;
+        transition: border-color .18s, background .18s;
+    }
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]:hover,
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]:focus-within {
+        border-color: rgba(171,136,109,.85) !important;
+        background: rgba(228,224,225,.11) !important;
+    }
+    /* drag-over glow */
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"][aria-dropeffect] {
+        border-color: var(--tan) !important;
+        background: rgba(171,136,109,.12) !important;
+    }
+    /* hide the default "Drag and drop" text + limit line */
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"] > div > span,
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"] > div > small {
+        display: none !important;
+    }
+    /* custom icon + label above the button */
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"]::before {
+        content: '\2191';
+        display: block;
+        font-size: 22px;
+        line-height: 1;
+        color: rgba(214,192,179,.70);
+        text-align: center;
+    }
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"]::after {
+        content: 'Drag & drop PDFs here';
+        display: block;
+        font: 500 11px/1.4 Inter, sans-serif;
+        color: rgba(228,224,225,.52);
+        text-align: center;
+        margin-top: 4px;
+    }
+    /* style the Browse button to match the sidebar palette */
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button {
+        background: var(--tan) !important;
+        color: var(--brown) !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 8px 18px !important;
+        font: 700 11px/1 Inter, sans-serif !important;
+        letter-spacing: .04em !important;
+        cursor: pointer !important;
+        transition: opacity .15s;
+    }
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button:hover {
+        opacity: .85 !important;
+    }
+    /* uploaded file pills */
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderFile"] {
+        background: rgba(228,224,225,.08) !important;
+        border: 1px solid rgba(214,192,179,.22) !important;
+        border-radius: 5px !important;
+        color: rgba(228,224,225,.88) !important;
+        font-size: 11px !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stFileUploaderDeleteBtn"] button {
+        color: rgba(214,192,179,.65) !important;
+    }
     .sidebar-rule { border: 0; height: 1px; background: rgba(214,192,179,.28); margin: 24px 0; }
     .document-list { max-height: 112px; overflow-y: auto; margin-top: 12px; padding-right: 5px; }
     .empty-docs { margin: 22px 14px; text-align: center; color: rgba(228,224,225,.74); font: italic 14px/1.5 'Source Serif 4', Georgia, serif; }
@@ -199,33 +273,17 @@ st.markdown(
 )
 
 with st.sidebar:
+    # ── Knowledge Base header ──────────────────────────────────────────
     st.markdown(
         """
-        <div class="sidebar-layout">
-          <section class="sidebar-pane knowledge-pane">
-            <div class="sidebar-title">Knowledge Base</div>
-            <p class="knowledge-steps">1. Upload PDFs &rarr; 2. Build/Update &rarr; 3. Ask questions</p>
-            <div class="sidebar-label">UPLOAD CASES</div>
-            <div class="dropzone"><span class="upload-pill">&uarr;&nbsp; Upload PDFs below</span></div>
-            <hr class="sidebar-rule">
-            <div class="sidebar-label">DOCUMENTS</div>
-          </section>
-          <div class="sidebar-divider"></div>
-          <section class="sidebar-pane history-pane">
-            <div class="history-heading">History</div>
-            <div class="sidebar-label">PAST QUERIES</div>
-            <div class="history-list">
-              <article class="history-item"><div class="history-query">Statute of limitations for medical malpractice in New York</div><span class="trust-tag">&sect; VERIFIED</span></article>
-              <article class="history-item"><div class="history-query">Exceptions to the hearsay rule for business records</div><span class="trust-tag">&sect; VERIFIED</span></article>
-              <article class="history-item"><div class="history-query">Recent Supreme Court rulings on Chevron deference</div><span class="trust-tag unverified">&sect; UNVERIFIED</span></article>
-              <article class="history-item"><div class="history-query">Delaware veil-piercing standard and undercapitalization</div><span class="trust-tag insufficient">&sect; INSUFFICIENT</span></article>
-              <article class="history-item"><div class="history-query">Elements required to establish promissory estoppel</div><span class="trust-tag">&sect; VERIFIED</span></article>
-            </div>
-          </section>
-        </div>
+        <div class="sidebar-title" style="padding: 30px 22px 0; margin-bottom: 6px;">Knowledge Base</div>
+        <p class="knowledge-steps" style="padding: 0 22px; margin-bottom: 14px;">1. Upload PDFs &rarr; 2. Build/Update &rarr; 3. Ask questions</p>
+        <div class="sidebar-label" style="padding: 0 22px;">UPLOAD CASES</div>
         """,
         unsafe_allow_html=True,
     )
+
+    # ── Actual file uploader (right under the heading) ─────────────────
     uploaded_cases = st.file_uploader(
         "Upload case PDFs",
         type="pdf",
@@ -236,9 +294,12 @@ with st.sidebar:
     uploaded_names = {os.path.splitext(os.path.basename(case.name))[0] for case in uploaded_cases}
     indexed_names = _indexed_case_names()
     pending_names = uploaded_names - indexed_names
+
+    # ── Documents list ─────────────────────────────────────────────────
+    st.markdown('<div class="sidebar-label" style="padding: 0 22px; margin-top: 4px;">DOCUMENTS</div>', unsafe_allow_html=True)
     if uploaded_cases:
         st.markdown(
-            '<div class="document-list">' + "".join(
+            '<div class="document-list" style="padding: 0 22px;">' + "".join(
                 f'<div class="document-name">{html.escape(case.name)}</div>' for case in uploaded_cases
             ) + '</div>',
             unsafe_allow_html=True,
@@ -248,7 +309,9 @@ with st.sidebar:
     if pending_names:
         count = len(pending_names)
         noun = "document" if count == 1 else "documents"
-        st.markdown(f'<div class="sync-status">{count} new {noun} not yet indexed</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="sync-status" style="margin: 8px 22px 0;">&#x25CF;&nbsp;{count} new {noun} not yet indexed</div>', unsafe_allow_html=True)
+
+    # ── Build button ───────────────────────────────────────────────────
     if st.button("BUILD / UPDATE KNOWLEDGE BASE", key="build-knowledge-base", use_container_width=True):
         if not uploaded_cases:
             st.info("Upload one or more PDFs before rebuilding the knowledge base.")
@@ -257,6 +320,25 @@ with st.sidebar:
                 _build_uploaded_cases(uploaded_cases)
             st.success("Knowledge base updated.")
             st.rerun()
+
+    # ── Divider + History ──────────────────────────────────────────────
+    st.markdown(
+        """
+        <div class="sidebar-divider" style="margin: 18px 0;"></div>
+        <div style="padding: 0 22px 30px;">
+          <div class="history-heading">History</div>
+          <div class="sidebar-label">PAST QUERIES</div>
+          <div class="history-list">
+            <article class="history-item"><div class="history-query">Statute of limitations for medical malpractice in New York</div><span class="trust-tag">&sect; VERIFIED</span></article>
+            <article class="history-item"><div class="history-query">Exceptions to the hearsay rule for business records</div><span class="trust-tag">&sect; VERIFIED</span></article>
+            <article class="history-item"><div class="history-query">Recent Supreme Court rulings on Chevron deference</div><span class="trust-tag unverified">&sect; UNVERIFIED</span></article>
+            <article class="history-item"><div class="history-query">Delaware veil-piercing standard and undercapitalization</div><span class="trust-tag insufficient">&sect; INSUFFICIENT</span></article>
+            <article class="history-item"><div class="history-query">Elements required to establish promissory estoppel</div><span class="trust-tag">&sect; VERIFIED</span></article>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 def _render_progress(slot, active_step, status):
     """Render the transient pipeline indicator with one current status line."""
