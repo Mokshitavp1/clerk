@@ -197,7 +197,7 @@ st.markdown(
     section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] button:hover {
         opacity: .85 !important;
     }
-    /* uploaded file pills */
+    /* upload-dropzone file pills */
     section[data-testid="stSidebar"] [data-testid="stFileUploaderFile"] {
         background: rgba(228,224,225,.08) !important;
         border: 1px solid rgba(214,192,179,.22) !important;
@@ -207,6 +207,13 @@ st.markdown(
     }
     section[data-testid="stSidebar"] [data-testid="stFileUploaderDeleteBtn"] button {
         color: rgba(214,192,179,.65) !important;
+    }
+    /* BUILD button — dimmed when nothing is uploaded */
+    section[data-testid="stSidebar"] .stButton button:disabled {
+        opacity: 0.38 !important;
+        cursor: not-allowed !important;
+        pointer-events: auto !important;  /* keep cursor visible even though click is blocked */
+        filter: grayscale(18%);
     }
     .sidebar-rule { border: 0; height: 1px; background: rgba(214,192,179,.28); margin: 24px 0; }
     .document-list { max-height: 112px; overflow-y: auto; margin-top: 12px; padding-right: 5px; }
@@ -314,7 +321,12 @@ with st.sidebar:
         st.markdown(f'<div class="sync-status" style="margin: 8px 22px 0;">&#x25CF;&nbsp;{count} new {noun} not yet indexed</div>', unsafe_allow_html=True)
 
     # ── Build button ───────────────────────────────────────────────────
-    if st.button("BUILD / UPDATE KNOWLEDGE BASE", key="build-knowledge-base", use_container_width=True):
+    if st.button(
+        "BUILD / UPDATE KNOWLEDGE BASE",
+        key="build-knowledge-base",
+        use_container_width=True,
+        disabled=not uploaded_cases,
+    ):
         if not uploaded_cases:
             st.info("Upload one or more PDFs before rebuilding the knowledge base.")
         else:
