@@ -28,9 +28,37 @@ CSS = """
     --shadow-sm: 0 1px 3px rgba(73,54,40,0.10), 0 1px 2px rgba(73,54,40,0.06);
     --shadow-md: 0 4px 12px rgba(73,54,40,0.12), 0 2px 4px rgba(73,54,40,0.08);
     --shadow-lg: 0 8px 24px rgba(73,54,40,0.14), 0 4px 8px rgba(73,54,40,0.08);
+    /* Radius scale */
     --radius-sm: 6px;
     --radius-md: 10px;
     --radius-lg: 14px;
+    --radius-full: 999px;
+    
+    /* Spacing scale (8px based) */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 24px;
+    --space-2xl: 32px;
+    --space-3xl: 48px;
+    --space-4xl: 64px;
+
+    /* Typography scale */
+    --text-serif-heading-lg: 45px;
+    --text-serif-heading-md: 22px;
+    --text-serif-heading-sm: 18px;
+    --text-serif-body: 16px;
+    
+    --text-sans-lg: 15px;
+    --text-sans-md: 13px;
+    --text-sans-sm: 11px;
+    --text-sans-xs: 9px;
+    
+    --text-mono-lg: 12px;
+    --text-mono-md: 10px;
+    --text-mono-sm: 9px;
+
     --transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
