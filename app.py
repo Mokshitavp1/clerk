@@ -229,6 +229,9 @@ st.markdown(
     .trust-tag { display: inline-flex; align-items: center; border: 1px solid rgba(214,192,179,.48); border-radius: 4px; padding: 4px 6px; color: var(--sand); font: 600 9px/1 'IBM Plex Mono', monospace; letter-spacing: .04em; }
     .trust-tag.unverified { color: var(--tan); border-color: rgba(171,136,109,.6); }
     .trust-tag.insufficient { color: rgba(228,224,225,.6); border-color: rgba(228,224,225,.25); }
+    .trust-tag::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background-color: #82b97c; }
+    .trust-tag.unverified::before { background-color: #dfad56; }
+    .trust-tag.insufficient::before { background-color: #9c9995; }
 
     .main-shell { padding: 68px 28px 0; }
     .query-page { max-width: 890px; margin: 0 auto; padding-top: 44px; }
