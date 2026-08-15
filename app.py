@@ -231,10 +231,10 @@ st.markdown(
     .trust-tag.insufficient { color: rgba(228,224,225,.6); border-color: rgba(228,224,225,.25); }
 
     .main-shell { padding: 68px 28px 0; }
-    .query-page { max-width: 890px; margin: 0 auto; padding-top: 83px; }
+    .query-page { max-width: 890px; margin: 0 auto; padding-top: 44px; }
     .eyebrow { text-align: center; color: var(--tan); font: 600 11px/1 'IBM Plex Mono', monospace; letter-spacing: .13em; }
     .query-page h1 { margin: 13px 0 13px; color: var(--brown); text-align: center; font: 700 45px/1.08 'Source Serif 4', Georgia, serif; letter-spacing: -.035em; }
-    .intro { max-width: 635px; margin: 0 auto 34px; text-align: center; color: var(--muted); font-size: 15px; line-height: 1.65; }
+    .intro { max-width: 635px; margin: 0 auto 24px; text-align: center; color: var(--muted); font-size: 15px; line-height: 1.65; }
     .query-card { background: var(--paper); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; box-shadow: 0 2px 8px rgba(73,54,40,.035); }
     .card-top, .card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; }
     .card-top { border-bottom: 1px solid var(--line); }
