@@ -1,0 +1,3 @@
+[pytest]
+markers =
+    requires_ollama: needs a local Ollama server + qwen2.5:7b-instruct pulled

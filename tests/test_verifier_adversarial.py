@@ -77,11 +77,80 @@ UNGROUNDED_REASONING = (
 )
 
 
+# ---------------------------------------------------------------------------
+# HARDER CASES — mostly-correct answers with one wrong detail smuggled in.
+# These are the realistic failure mode: a model that's grounded 90% of the
+# time and confidently wrong about one number or clause is far more
+# dangerous than one that's wholly fabricated, because it doesn't read as
+# suspicious to a human skimming the answer.
+# ---------------------------------------------------------------------------
+
+# (e) Correct holding, correct damages, but one clause added that isn't
+#     supported by either chunk (interest/costs never mentioned anywhere).
+CORRECT_PLUS_UNSUPPORTED_ADDITION = (
+    "The court found the defendant breached the implied covenant of good faith by "
+    "delaying performance, and awarded $42,000 in damages for the plaintiff's lost "
+    "profits, plus statutory interest and court costs.\n\n"
+    "Sources: Smith_v_Jones_2019, p. 4; Smith_v_Jones_2019, p. 7"
+)
+
+# (f) Correct claim, but the dollar figure is subtly altered (transposed
+#     digits) rather than wholly invented -- easy to miss on a skim.
+SUBTLY_ALTERED_DAMAGES_FIGURE = (
+    "The court found the defendant breached the implied covenant of good faith by "
+    "delaying performance, and awarded $24,000 in damages for the plaintiff's lost "
+    "profits.\n\n"
+    "Sources: Smith_v_Jones_2019, p. 4; Smith_v_Jones_2019, p. 7"
+)
+
+# (g) Correct facts, but attributed to the wrong legal theory (breach of
+#     implied covenant vs. straightforward breach of contract) -- both
+#     plausible in a contract dispute, only one is what the chunk says.
+CORRECT_FACTS_WRONG_LEGAL_THEORY = (
+    "The court found the defendant liable for straightforward breach of contract "
+    "by delaying performance, and awarded $42,000 in damages for the plaintiff's "
+    "lost profits.\n\n"
+    "Sources: Smith_v_Jones_2019, p. 4; Smith_v_Jones_2019, p. 7"
+)
+
+# (h) Both real facts present and correctly cited, but stated with a
+#     confidence/certainty the source text doesn't support -- the chunk
+#     doesn't say "the court definitively ruled," it just states the
+#     holding; this tests whether the verifier catches overclaiming
+#     rather than only outright fabrication.
+OVERCLAIMED_CERTAINTY = (
+    "The court definitively and unambiguously ruled, leaving no room for appeal, "
+    "that the defendant breached the implied covenant of good faith by delaying "
+    "performance, awarding the full $42,000 in damages requested for the "
+    "plaintiff's lost profits.\n\n"
+    "Sources: Smith_v_Jones_2019, p. 4; Smith_v_Jones_2019, p. 7"
+)
+
+# (i) Two correct chunks, but the causal link between them is invented --
+#     each individual fact is grounded, but the connecting claim isn't.
+INVENTED_CAUSAL_LINK = (
+    "The court found the defendant breached the implied covenant of good faith by "
+    "delaying performance. This delay was caused by the defendant's deliberate "
+    "attempt to run out the clock on a separate, unrelated contract dispute, and "
+    "the court awarded $42,000 in damages for the plaintiff's lost profits as a "
+    "result.\n\n"
+    "Sources: Smith_v_Jones_2019, p. 4; Smith_v_Jones_2019, p. 7"
+)
+
+
 ADVERSARIAL_CASES = [
     pytest.param(WRONG_PAGE_CITATION, id="wrong_page_citation"),
     pytest.param(MISSTATED_HOLDING, id="misstated_holding"),
     pytest.param(FABRICATED_DAMAGES, id="fabricated_damages"),
     pytest.param(UNGROUNDED_REASONING, id="ungrounded_reasoning"),
+]
+
+HARD_ADVERSARIAL_CASES = [
+    pytest.param(CORRECT_PLUS_UNSUPPORTED_ADDITION, id="correct_plus_unsupported_addition"),
+    pytest.param(SUBTLY_ALTERED_DAMAGES_FIGURE, id="subtly_altered_damages_figure"),
+    pytest.param(CORRECT_FACTS_WRONG_LEGAL_THEORY, id="correct_facts_wrong_legal_theory"),
+    pytest.param(OVERCLAIMED_CERTAINTY, id="overclaimed_certainty"),
+    pytest.param(INVENTED_CAUSAL_LINK, id="invented_causal_link"),
 ]
 
 
@@ -107,6 +176,38 @@ class TestAdversarialRejection:
         total = len(results)
         assert rejected == total, (
             f"Only {rejected}/{total} adversarial answers were correctly rejected."
+        )
+
+
+class TestHardAdversarialRejection:
+    """The realistic failure mode: mostly-correct answers with one wrong
+    detail. These are meaningfully harder than TestAdversarialRejection's
+    wholly-fabricated cases, and a verifier that passes the easy set but
+    fails here is giving you false confidence, not real safety."""
+
+    @pytest.mark.parametrize("answer_text", HARD_ADVERSARIAL_CASES)
+    def test_verifier_rejects_hard_adversarial_answer(self, answer_text):
+        result = verify_answer(answer_text, CHUNKS_SMITH)
+        assert result["verified"] is False, (
+            f"Verifier passed a mostly-correct answer with a smuggled error:\n{answer_text}"
+        )
+
+    def test_hard_case_rejection_rate_reported_separately(self):
+        """Report the hard-case rejection rate on its own, not blended with
+        the easy set -- if the easy set is 4/4 and the hard set is 2/5,
+        blending them into one 6/9 number would hide exactly the gap that
+        matters most."""
+        results = [
+            verify_answer(case.values[0], CHUNKS_SMITH) for case in HARD_ADVERSARIAL_CASES
+        ]
+        rejected = sum(1 for r in results if r["verified"] is False)
+        total = len(results)
+        failed_ids = [
+            case.id for case, r in zip(HARD_ADVERSARIAL_CASES, results) if r["verified"]
+        ]
+        assert rejected == total, (
+            f"Hard adversarial set: only {rejected}/{total} correctly rejected. "
+            f"Passed through (should have been rejected): {failed_ids}"
         )
 
 
