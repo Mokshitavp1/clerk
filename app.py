@@ -130,7 +130,7 @@ st.markdown(
     .sidebar-pane::-webkit-scrollbar-thumb, .document-list::-webkit-scrollbar-thumb, .history-list::-webkit-scrollbar-thumb { background: rgba(214,192,179,.45); border-radius: 99px; }
     .sidebar-divider { background: rgba(214,192,179,.28); margin: 0 22px; }
     .sidebar-title { margin: 0 0 28px; color: #F5F0E9; font: 700 22px/1.1 'Source Serif 4', Georgia, serif; }
-    .knowledge-steps { margin: -17px 0 20px; color: rgba(228,224,225,.62); font: 500 11px/1.45 Inter, sans-serif; }
+    .knowledge-steps { margin: -17px 0 20px; color: rgba(228,224,225,.88); font: 500 11px/1.45 Inter, sans-serif; }
     .sidebar-label { color: var(--tan); font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .13em; }
     .dropzone { margin-top: 10px; min-height: 126px; display: grid; place-items: center; border: 1px dashed rgba(214,192,179,.64); border-radius: 8px; background: rgba(228,224,225,.07); }
     .upload-pill { display: inline-block; padding: 10px 22px; border-radius: 999px; background: var(--tan); color: var(--brown); font: 700 13px/1 Inter, sans-serif; }
@@ -217,7 +217,7 @@ st.markdown(
     }
     .sidebar-rule { border: 0; height: 1px; background: rgba(214,192,179,.28); margin: 24px 0; }
     .document-list { max-height: 112px; overflow-y: auto; margin-top: 12px; padding-right: 5px; }
-    .empty-docs { margin: 22px 14px; text-align: center; color: rgba(228,224,225,.74); font: italic 14px/1.5 'Source Serif 4', Georgia, serif; }
+    .empty-docs { margin: 22px 14px; text-align: center; color: rgba(228,224,225,.90); font: italic 14px/1.5 'Source Serif 4', Georgia, serif; }
     .document-name { padding: 8px 0; border-bottom: 1px solid rgba(214,192,179,.18); color: rgba(228,224,225,.9); font-size: 12px; overflow-wrap: anywhere; }
     .sync-status { display: inline-block; margin: 12px 0 16px; padding: 5px 7px; border: 1px solid rgba(214,192,179,.38); border-radius: 4px; color: var(--sand); font: 600 9px/1 'IBM Plex Mono', monospace; letter-spacing: .04em; }
     .build-button { display: block; width: 100%; margin-top: auto; padding: 13px 14px; background: var(--tan); border-radius: 7px; color: var(--brown); text-align: center; font: 700 11px/1.38 Inter, sans-serif; letter-spacing: .025em; }
