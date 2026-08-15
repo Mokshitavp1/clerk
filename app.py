@@ -241,6 +241,8 @@ st.markdown(
     .mode-control { display: flex; align-items: center; gap: 5px; }
     .mode { padding: 8px 11px; border: 1px solid rgba(73,54,40,.25); border-radius: 5px; color: var(--muted); background: transparent; font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; }
     .mode.active { color: var(--paper); background: var(--brown); border-color: var(--brown); }
+    .btn-caption { margin-top: 5px; color: var(--muted); font: 500 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: .04em; text-align: center; }
+    .mode-caption { color: var(--muted); font: 500 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: .04em; }
     .options, .nlp { color: var(--muted); font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; white-space: nowrap; }
     .question-space { min-height: 166px; padding: 25px 20px; color: #9C938C; font: italic 16px/1.55 'Source Serif 4', Georgia, serif; }
     .card-bottom { border-top: 1px solid var(--line); }
@@ -450,6 +452,7 @@ with fast_col:
         on_click=_choose_mode,
         args=("Fast",),
     )
+    st.markdown('<div class="btn-caption">Single top match</div>', unsafe_allow_html=True)
 with deep_col:
     st.button(
         "DEEP THINKING",
@@ -459,6 +462,7 @@ with deep_col:
         on_click=_choose_mode,
         args=("Deep Thinking",),
     )
+    st.markdown('<div class="btn-caption">Compares multiple cases</div>', unsafe_allow_html=True)
 with auto_col:
     st.button(
         "AUTO",
@@ -468,6 +472,7 @@ with auto_col:
         on_click=_choose_mode,
         args=("Auto",),
     )
+    st.markdown('<div class="btn-caption">Picks for you</div>', unsafe_allow_html=True)
 mode_picker.markdown('<div class="mode-caption">Not sure? Auto picks for you.</div>', unsafe_allow_html=True)
 selected_mode = st.session_state.selected_mode
 
