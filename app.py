@@ -118,7 +118,7 @@ st.markdown(
     .brand-name { font: 700 19px/1 'Source Serif 4', Georgia, serif; letter-spacing: -.02em; }
     .topbar-right { display: flex; align-items: center; gap: 14px; }
     .system-status {
-        color: #8A5B4B; background: #F2E7E0; border: 1px solid #D6C0B3; border-radius: 999px;
+        color: #4A6741; background: #EBF0E8; border: 1px solid #B8CCAF; border-radius: 999px;
         padding: 7px 11px; font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .06em;
     }
     .avatar { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--brown); color: var(--mist); font-size: 15px; }
@@ -266,7 +266,7 @@ st.markdown(
     </style>
     <div class="topbar">
       <div class="brand"><span class="brand-mark">⚖</span><span class="brand-name">Legal Retrieval Assistant</span></div>
-      <div class="topbar-right"><span class="system-status">● SYSTEM STATUS: OFFLINE</span><span class="avatar">♙</span></div>
+      <div class="topbar-right"><span class="system-status">● LOCAL / PRIVATE</span><span class="avatar">♙</span></div>
     </div>
     """,
     unsafe_allow_html=True,
