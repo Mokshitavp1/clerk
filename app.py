@@ -244,8 +244,8 @@ st.markdown(
     .mode-control { display: flex; align-items: center; gap: 5px; }
     .mode { padding: 8px 11px; border: 1px solid rgba(73,54,40,.25); border-radius: 5px; color: var(--muted); background: transparent; font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; }
     .mode.active { color: var(--paper); background: var(--brown); border-color: var(--brown); }
-    .btn-caption { margin-top: 5px; color: var(--muted); font: 500 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: .04em; text-align: center; }
-    .mode-caption { color: var(--muted); font: 500 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: .04em; }
+    .btn-caption { margin-top: 5px; margin-bottom: 12px; min-height: 28px; color: var(--muted); font: 500 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: .04em; text-align: center; }
+    .mode-caption { display: block; color: var(--muted); font: 500 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: .04em; }
     .options, .nlp { color: var(--muted); font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; white-space: nowrap; }
     .question-space { min-height: 166px; padding: 25px 20px; color: #9C938C; font: italic 16px/1.55 'Source Serif 4', Georgia, serif; }
     .card-bottom { border-top: 1px solid var(--line); }
