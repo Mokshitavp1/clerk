@@ -167,7 +167,7 @@ st.markdown(
     }
     /* custom icon + label above the button */
     section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"]::before {
-        content: '\2191';
+        content: '↑';
         display: block;
         font-size: 22px;
         line-height: 1;
@@ -223,7 +223,7 @@ st.markdown(
     .trust-tag.unverified { color: var(--tan); border-color: rgba(171,136,109,.6); }
     .trust-tag.insufficient { color: rgba(228,224,225,.6); border-color: rgba(228,224,225,.25); }
 
-    .main-shell { min-height: calc(100vh - 68px); padding: 68px 28px 56px; }
+    .main-shell { padding: 68px 28px 0; }
     .query-page { max-width: 890px; margin: 0 auto; padding-top: 83px; }
     .eyebrow { text-align: center; color: var(--tan); font: 600 11px/1 'IBM Plex Mono', monospace; letter-spacing: .13em; }
     .query-page h1 { margin: 13px 0 13px; color: var(--brown); text-align: center; font: 700 45px/1.08 'Source Serif 4', Georgia, serif; letter-spacing: -.035em; }
