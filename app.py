@@ -291,7 +291,7 @@ with st.sidebar:
     st.markdown(
         """
         <div class="sidebar-title" style="padding: 30px 22px 0; margin-bottom: 6px;">Knowledge Base</div>
-        <p class="knowledge-steps" style="padding: 0 22px; margin-bottom: 14px;">1. Upload PDFs &rarr; 2. Build/Update &rarr; 3. Ask questions</p>
+        <p class="knowledge-steps" style="padding: 0 22px; margin-bottom: 14px;">1. Upload PDFs &rarr; 2. Build&#47;Update &rarr; 3. Ask questions</p>
         <div class="sidebar-label" style="padding: 0 22px;">UPLOAD CASES</div>
         """,
         unsafe_allow_html=True,
