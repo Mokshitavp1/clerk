@@ -34,6 +34,7 @@ import os
 import random
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "generation"))
 
 from verifier import verify_answer
 
@@ -64,7 +65,7 @@ def run_eval(n_samples, seed=42):
         sys.exit(1)
 
     print(f"Loading CaseHOLD (test split) from Hugging Face...")
-    dataset = load_dataset("casehold/casehold", split="test")
+    dataset = load_dataset("casehold/casehold", split="test", trust_remote_code=True)
 
     random.seed(seed)
     indices = random.sample(range(len(dataset)), min(n_samples, len(dataset)))

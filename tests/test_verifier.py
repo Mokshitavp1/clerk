@@ -92,6 +92,65 @@ class TestParseVerificationResponse:
 
 
 # ---------------------------------------------------------------------------
+# _check_citations_deterministic — pure function, no Ollama needed
+# ---------------------------------------------------------------------------
+
+from verifier import _check_citations_deterministic
+
+class TestDeterministicCitationCheck:
+    def setup_method(self):
+        self.chunks = [
+            {"case_name": "Smith_v_Jones_2019", "page_number": 4, "text": "dummy"},
+            {"case_name": "Smith_v_Jones_2019", "page_number": 7, "text": "dummy"},
+            {"case_name": "State_v_Doe,Inc._2020", "page_number": 2, "text": "comma in name"}
+        ]
+
+    def test_clean_match(self):
+        answer = "Some text.\n\nSources: Smith_v_Jones_2019, p. 4; Smith_v_Jones_2019, p. 7"
+        res = _check_citations_deterministic(answer, self.chunks)
+        assert res["verified"] is True
+
+    def test_rejects_citation_to_case_discussed_but_not_provided(self):
+        # The exact Howe v. Smith vulnerability
+        answer = "Some text.\n\nSources: Howe v. Smith [1884] Ch. 89"
+        res = _check_citations_deterministic(answer, self.chunks)
+        assert res["verified"] is False
+        assert "no page number found" in res["issue"]
+
+    def test_rejects_off_by_one_page_number(self):
+        # Case exists, but page 3 is not in our chunks (we have 4 and 7)
+        answer = "Some text.\n\nSources: Smith_v_Jones_2019, p. 3"
+        res = _check_citations_deterministic(answer, self.chunks)
+        assert res["verified"] is False
+        assert "no provided excerpt has this exact (case_name, page_number) pair" in res["issue"]
+
+    def test_handles_comma_in_case_name(self):
+        # The parser splits on ';' so a ',' inside a case name shouldn't break it
+        answer = "Some text.\n\nSources: State_v_Doe,Inc._2020, p. 2"
+        res = _check_citations_deterministic(answer, self.chunks)
+        assert res["verified"] is True
+
+    def test_handles_page_number_format_drift(self):
+        # LLM might use pg. or Page or p.
+        answer = "Some text.\n\nSources: Smith_v_Jones_2019, Pg. 4; Smith_v_Jones_2019, page 7"
+        res = _check_citations_deterministic(answer, self.chunks)
+        assert res["verified"] is True
+
+    def test_rejects_malformed_page_number(self):
+        # Fails closed if the number format drifts too far to parse confidently
+        answer = "Some text.\n\nSources: Smith_v_Jones_2019, at paragraph 4"
+        res = _check_citations_deterministic(answer, self.chunks)
+        assert res["verified"] is False
+        assert "no page number found" in res["issue"]
+
+    def test_multiple_citations_to_same_case(self):
+        # Tests that splitting by ';' correctly treats each as a separate tuple
+        answer = "Some text.\n\nSources: Smith_v_Jones_2019, p. 4; Smith_v_Jones_2019, p. 7"
+        res = _check_citations_deterministic(answer, self.chunks)
+        assert res["verified"] is True
+
+
+# ---------------------------------------------------------------------------
 # verify_answer — end-to-end, calls the real local model
 # ---------------------------------------------------------------------------
 
