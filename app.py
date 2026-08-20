@@ -504,13 +504,10 @@ if pending_warning:
 
 query_section = st.container(key="query-section")
 with query_section.form("legal-query", clear_on_submit=False):
-<<<<<<< HEAD
     st.markdown(
         '<div class="form-top"><span class="options">&#9881; OPTIONS</span></div>',
         unsafe_allow_html=True,
     )
-=======
->>>>>>> aef4628 (Center query area: make .query-page flex column and center contents)
     question = st.text_area(
         "Legal question",
         key="query_draft",
