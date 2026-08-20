@@ -60,17 +60,42 @@ def _indexed_case_names():
         return set()
 
 
-def _build_uploaded_cases(uploaded_files):
-    """Persist and index the selected PDFs only when the user requests it."""
+def _build_uploaded_cases(uploaded_files, progress_bar=None, status_slot=None):
+    """Persist and index the selected PDFs only when the user requests it.
+
+    If `progress_bar` (an `st.progress` instance) is provided, update it
+    after each file so the user sees percent-complete feedback.
+    """
     from ingest import replace_case
 
     os.makedirs(os.path.join(PROJECT_ROOT, "cases"), exist_ok=True)
-    for uploaded_file in uploaded_files:
+    total = len(uploaded_files)
+    for idx, uploaded_file in enumerate(uploaded_files, start=1):
         filename = os.path.basename(uploaded_file.name)
         destination = os.path.join(PROJECT_ROOT, "cases", filename)
         with open(destination, "wb") as case_file:
             case_file.write(uploaded_file.getvalue())
+        # show a pre-indexing tick so the UI feels responsive
+        try:
+            if progress_bar is not None and total > 0:
+                pre_pct = int(((idx - 1) / total) * 100)
+                progress_bar.progress(pre_pct)
+            if status_slot is not None:
+                status_slot.text(f"Starting indexing {filename} ({idx}/{total})...")
+        except Exception:
+            pass
+
+        # index the single case (may be time-consuming)
         replace_case(destination)
+
+        # update progress/status in the provided UI slots after indexing
+        try:
+            if progress_bar is not None and total > 0:
+                progress_bar.progress(int(idx / total * 100))
+            if status_slot is not None:
+                status_slot.text(f"Indexed {filename} ({idx}/{total})")
+        except Exception:
+            pass
 
 
 st.markdown(
@@ -121,7 +146,33 @@ st.markdown(
         color: #4A6741; background: #EBF0E8; border: 1px solid #B8CCAF; border-radius: 999px;
         padding: 7px 11px; font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .06em;
     }
+    /* Loading spinner for BUILD/RETRIEVE actions */
+    .loading-button { display: inline-flex; align-items: center; gap: 10px; background: var(--tan); color: var(--brown); padding: 10px 16px; border-radius: 6px; font-weight: 700; }
+    .loading-button .spinner { width: 18px; height: 18px; border-radius: 50%; border: 3px solid rgba(73,54,40,.12); border-top-color: rgba(73,54,40,.9); animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .avatar { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--brown); color: var(--mist); font-size: 15px; }
+
+    /* Make Streamlit buttons look interactive and add a small click animation */
+    .stButton>button {
+        transition: transform .08s ease, box-shadow .08s ease, opacity .12s;
+        cursor: pointer;
+        box-shadow: 0 2px 0 rgba(0,0,0,.06);
+    }
+    .stButton>button:active {
+        transform: translateY(1px) scale(.995);
+        box-shadow: 0 1px 0 rgba(0,0,0,.04) inset;
+    }
+    .stButton>button:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* Make the query form submit button visually prominent */
+    .stForm .stButton>button {
+        background: var(--brown) !important;
+        color: var(--paper) !important;
+        border-radius: 6px !important;
+        padding: 10px 18px !important;
+        font-weight: 700 !important;
+    }
+    .stForm .stButton>button:hover { opacity: .95; }
 
     .sidebar-layout { height: 100%; display: grid; grid-template-rows: minmax(0, 1fr) 1px minmax(0, 1fr); }
     .sidebar-pane { min-height: 0; overflow-y: auto; padding: 20px 22px 24px; scrollbar-color: rgba(214,192,179,.45) transparent; }
@@ -233,7 +284,35 @@ st.markdown(
     [data-testid="stHeadingWithActionElements"] a {
         display: none !important;
     }
-    .intro { max-width: 890px; margin: 0 auto 24px; text-align: center; color: var(--muted); font-size: 15px; line-height: 1.65; }
+    .intro { max-width: 890px; margin: 0 auto 6px; text-align: center; color: var(--muted); font-size: 15px; line-height: 1.65; }
+        /* Ensure the main query submit button looks and behaves like a button */
+        .main-shell .stButton button, .query-page .stButton button, form [type="submit"] {
+            cursor: pointer !important;
+            background: var(--brown) !important;
+            color: var(--paper) !important;
+            border: none !important;
+            border-radius: 6px !important;
+            padding: 12px 14px !important;
+            font-weight: 700 !important;
+            box-shadow: none !important;
+            transition: opacity .12s !important;
+            will-change: transform, box-shadow !important;
+        }
+        .query-page .stButton > button:active, .query-page form .stButton button:active {
+            transform: translateY(2px) scale(.995) !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,.06) inset !important;
+            opacity: .95 !important;
+        }
+        /* small pulse when clicked (visual feedback) */
+        @keyframes clickPulse {
+            0% { box-shadow: 0 0 0 0 rgba(73,54,40,0.12); }
+            70% { box-shadow: 0 0 0 10px rgba(73,54,40,0); }
+            100% { box-shadow: 0 0 0 0 rgba(73,54,40,0); }
+        }
+        .query-page .stButton > button.pulse {
+            animation: clickPulse 700ms ease;
+        }
+        }
     .query-card { background: var(--paper); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; box-shadow: 0 2px 8px rgba(73,54,40,.035); }
     .card-top, .card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; }
     .card-top { border-bottom: 1px solid var(--line); }
@@ -321,19 +400,25 @@ with st.sidebar:
         st.markdown(f'<div class="sync-status" style="margin: 8px 22px 0;">&#x25CF;&nbsp;{count} new {noun} not yet indexed</div>', unsafe_allow_html=True)
 
     # ── Build button ───────────────────────────────────────────────────
-    if st.button(
-        "BUILD / UPDATE KNOWLEDGE BASE",
-        key="build-knowledge-base",
-        use_container_width=True,
-        disabled=not uploaded_cases,
-    ):
-        if not uploaded_cases:
-            st.info("Upload one or more PDFs before rebuilding the knowledge base.")
-        else:
-            with st.spinner("Building knowledge base…"):
-                _build_uploaded_cases(uploaded_cases)
-            st.success("Knowledge base updated.")
-            st.rerun()
+        # show BUILD as a slot so we can replace it with a spinner while building
+        build_slot = st.empty()
+        if build_slot.button(
+            "BUILD / UPDATE KNOWLEDGE BASE",
+            key="build-knowledge-base",
+            use_container_width=True,
+            disabled=not uploaded_cases,
+        ):
+            if not uploaded_cases:
+                st.info("Upload one or more PDFs before rebuilding the knowledge base.")
+            else:
+                # replace the button with an inline spinner element while building
+                build_slot.markdown('<div class="loading-button"><span class="spinner"></span> Building…</div>', unsafe_allow_html=True)
+                try:
+                    _build_uploaded_cases(uploaded_cases)
+                    build_slot.success("Knowledge base updated.")
+                except Exception:
+                    build_slot.error("Failed to build knowledge base. See logs.")
+                st.rerun()
 
     # ── Divider + History ──────────────────────────────────────────────
     st.markdown(
@@ -527,7 +612,7 @@ if submitted and question.strip():
     run_request = {"query": question.strip(), "cases": shortlist}
 
 if run_request:
-    with st.spinner(""):
+    with st.spinner("Retrieving answers…"):
         st.session_state.last_query_result = _run_query(
             run_request["query"], progress_slot, selected_mode, run_request["cases"]
         )
