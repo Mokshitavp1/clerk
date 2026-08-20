@@ -848,11 +848,28 @@ def inject_query_interaction_theme():
         /* Query styles are deliberately scoped to this keyed Streamlit container. */
         .st-key-query-section-mode-picker [data-testid="stTooltipHoverTarget"] { cursor: help; }
         .st-key-query-section-mode-picker { max-width: 890px; margin: 0 auto 8px; }
-        .st-key-query-section-mode-picker [data-testid="stHorizontalBlock"] { align-items: center; }
+
+        /* Center the Fast / Deep Thinking / Auto buttons as a group, each
+           sized to its own content instead of stretching to an equal-width
+           column — this is what keeps them from wrapping onto two lines
+           and lets them sit centered under the query card below. */
+        .st-key-query-section-mode-picker [data-testid="stHorizontalBlock"] {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 22px;
+            flex-wrap: nowrap;
+        }
+        .st-key-query-section-mode-picker [data-testid="stColumn"] {
+            flex: 0 0 auto !important;
+            width: auto !important;
+            min-width: 0 !important;
+        }
         .st-key-query-section-mode-picker .stButton > button {
-            min-height: 34px; padding: 8px 11px; border: 1px solid #AB886D;
+            min-height: 34px; padding: 8px 16px; border: 1px solid #AB886D;
             border-radius: 5px; color: #AB886D; background: transparent; box-shadow: none;
             font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; transform: none;
+            white-space: nowrap;
         }
         .st-key-query-section-mode-picker .stButton > button[kind="primary"] {
             color: var(--paper); background: #AB886D; border-color: #AB886D; font-weight: 700;
