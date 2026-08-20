@@ -242,11 +242,8 @@ st.markdown(
     .mode-control { display: flex; align-items: center; gap: 5px; }
     .mode { padding: 8px 11px; border: 1px solid rgba(73,54,40,.25); border-radius: 5px; color: var(--muted); background: transparent; font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; }
     .mode.active { color: var(--paper); background: var(--brown); border-color: var(--brown); }
-<<<<<<< HEAD
     .btn-caption { display: block; width: 100%; margin-top: 5px; margin-bottom: 12px; min-height: 28px; color: #4A3628; font: 500 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: .04em; text-align: center !important; }
-=======
     .btn-caption { margin-top: 5px; margin-bottom: 12px; min-height: 28px; color: var(--muted); font: 500 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: .04em; text-align: center; }
->>>>>>> aef4628 (Center query area: make .query-page flex column and center contents)
     .mode-caption { display: block; color: var(--muted); font: 500 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: .04em; }
     .options, .nlp { color: var(--muted); font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; white-space: nowrap; }
     .question-space { min-height: 166px; padding: 25px 20px; color: #9C938C; font: italic 16px/1.55 'Source Serif 4', Georgia, serif; }
@@ -282,11 +279,8 @@ st.markdown(
     </style>
     <div class="topbar">
       <div class="brand"><span class="brand-mark">⚖</span><span class="brand-name">Legal Retrieval Assistant</span></div>
-<<<<<<< HEAD
       <div class="topbar-right"><span class="system-status">● LOCAL / PRIVATE</span><span class="avatar">♙</span></div>
-=======
       <div class="topbar-right"><span class="system-status">● LOCAL / PRIVATE</span></div>
->>>>>>> aef4628 (Center query area: make .query-page flex column and center contents)
     </div>
     """,
     unsafe_allow_html=True,
@@ -440,12 +434,9 @@ def _run_query(question, progress_slot, mode, shortlisted_cases=None):
 
 st.markdown(
     """
-    <main class="main-shell"><section class="query-page">
-<<<<<<< HEAD
-      <div class="eyebrow">§ QUERY ENGINE V.4</div>
-=======
->>>>>>> aef4628 (Center query area: make .query-page flex column and center contents)
-      <h1>Ask a Legal Question</h1>
+        <main class="main-shell"><section class="query-page">
+        <div class="eyebrow">§ QUERY ENGINE V.4</div>
+        <h1>Ask a Legal Question</h1>
       <p class="intro">Enter your query, cite specific statutes, or describe a fact pattern. The system will retrieve relevant case law and synthesize a memorandum.</p>
     </section></main>
     """,
@@ -453,11 +444,7 @@ st.markdown(
 )
 
 mode_picker = st.container(key="query-section-mode-picker")
-<<<<<<< HEAD
-fast_col, deep_col, auto_col, _ = mode_picker.columns((1, 1.55, 1, 4.45))
-=======
 fast_col, deep_col, auto_col = mode_picker.columns(3)
->>>>>>> aef4628 (Center query area: make .query-page flex column and center contents)
 with fast_col:
     st.button(
         "FAST",
@@ -565,8 +552,4 @@ if "last_query_result" in st.session_state:
     st.markdown(
         f'<div class="result-card">{html.escape(result["answer"])}</div>',
         unsafe_allow_html=True,
-<<<<<<< HEAD
     )
-=======
-    )
->>>>>>> aef4628 (Center query area: make .query-page flex column and center contents)
