@@ -239,7 +239,7 @@ st.markdown(
     .query-card { background: var(--paper); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; box-shadow: 0 2px 8px rgba(73,54,40,.035); }
     .card-top, .card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; }
     .card-top { border-bottom: 1px solid var(--line); }
-    .mode-control { display: flex; align-items: center; gap: 5px; }
+    .mode-control { display: flex; align-items: center; gap: 12px; justify-content: center; }
     .mode { padding: 8px 11px; border: 1px solid rgba(73,54,40,.25); border-radius: 5px; color: var(--muted); background: transparent; font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; }
     .mode.active { color: var(--paper); background: var(--brown); border-color: var(--brown); }
     .btn-caption { display: block; width: 100%; margin-top: 5px; margin-bottom: 12px; min-height: 28px; color: #4A3628; font: 500 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: .04em; text-align: center !important; }
@@ -277,11 +277,10 @@ st.markdown(
         .query-page h1 { font-size: 38px; }
     }
     </style>
-    <div class="topbar">
-      <div class="brand"><span class="brand-mark">⚖</span><span class="brand-name">Legal Retrieval Assistant</span></div>
-      <div class="topbar-right"><span class="system-status">● LOCAL / PRIVATE</span><span class="avatar">♙</span></div>
-      <div class="topbar-right"><span class="system-status">● LOCAL / PRIVATE</span></div>
-    </div>
+        <div class="topbar">
+            <div class="brand"><span class="brand-mark">⚖</span><span class="brand-name">Legal Retrieval Assistant</span></div>
+            <div class="topbar-right"><span class="avatar">♙</span></div>
+        </div>
     """,
     unsafe_allow_html=True,
 )
@@ -454,7 +453,7 @@ with fast_col:
         on_click=_choose_mode,
         args=("Fast",),
     )
-    st.markdown('<div class="btn-caption">Top match only</div>', unsafe_allow_html=True)
+    
 with deep_col:
     st.button(
         "DEEP THINKING",
@@ -464,7 +463,7 @@ with deep_col:
         on_click=_choose_mode,
         args=("Deep Thinking",),
     )
-    st.markdown('<div class="btn-caption">Compares multiple cases</div>', unsafe_allow_html=True)
+    
 with auto_col:
     st.button(
         "AUTO",
@@ -474,7 +473,7 @@ with auto_col:
         on_click=_choose_mode,
         args=("Auto",),
     )
-    st.markdown('<div class="btn-caption">Picks for you</div>', unsafe_allow_html=True)
+    
 selected_mode = st.session_state.selected_mode
 
 pending_warning = st.session_state.pending_warning
