@@ -223,9 +223,7 @@ st.markdown(
     .trust-tag.insufficient::before { background-color: #9c9995; }
 
     .main-shell { padding: 68px 28px 0; }
-    /* Center the contents of the query area so the heading and intro align */
-    .query-page { max-width: 890px; margin: 0 auto; padding-top: 14px; display: flex; flex-direction: column; align-items: center; }
-    .eyebrow { text-align: center; color: var(--tan); font: 600 11px/1 'IBM Plex Mono', monospace; letter-spacing: .13em; }
+    .query-page { max-width: 890px; margin: 0 auto; padding-top: 14px; }
     .query-page h1 { margin: 0 0 8px; color: var(--brown); text-align: center; font: 700 45px/1.08 'Source Serif 4', Georgia, serif; letter-spacing: -.035em; }
     /* Streamlit auto-adds a hover anchor-link icon to any h1-h6 it detects,
        even ones rendered via raw HTML — this hides it, covering the
@@ -235,14 +233,13 @@ st.markdown(
     [data-testid="stHeadingWithActionElements"] a {
         display: none !important;
     }
-    .intro { max-width: 635px; margin: 0 auto 24px; text-align: center; color: var(--muted); font-size: 15px; line-height: 1.65; }
+    .intro { max-width: 890px; margin: 0 auto 24px; text-align: center; color: var(--muted); font-size: 15px; line-height: 1.65; }
     .query-card { background: var(--paper); border: 1px solid var(--line); border-radius: 11px; overflow: hidden; box-shadow: 0 2px 8px rgba(73,54,40,.035); }
     .card-top, .card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 18px; }
     .card-top { border-bottom: 1px solid var(--line); }
-    .mode-control { display: flex; align-items: center; gap: 12px; justify-content: center; }
+    .mode-control { display: flex; align-items: center; gap: 5px; }
     .mode { padding: 8px 11px; border: 1px solid rgba(73,54,40,.25); border-radius: 5px; color: var(--muted); background: transparent; font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; }
     .mode.active { color: var(--paper); background: var(--brown); border-color: var(--brown); }
-    .btn-caption { display: block; width: 100%; margin-top: 5px; margin-bottom: 12px; min-height: 28px; color: #4A3628; font: 500 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: .04em; text-align: center !important; }
     .btn-caption { margin-top: 5px; margin-bottom: 12px; min-height: 28px; color: var(--muted); font: 500 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: .04em; text-align: center; }
     .mode-caption { display: block; color: var(--muted); font: 500 10px/1.3 'IBM Plex Mono', monospace; letter-spacing: .04em; }
     .options, .nlp { color: var(--muted); font: 600 10px/1 'IBM Plex Mono', monospace; letter-spacing: .07em; white-space: nowrap; }
@@ -277,10 +274,10 @@ st.markdown(
         .query-page h1 { font-size: 38px; }
     }
     </style>
-        <div class="topbar">
-            <div class="brand"><span class="brand-mark">⚖</span><span class="brand-name">Legal Retrieval Assistant</span></div>
-            <div class="topbar-right"><span class="avatar">♙</span></div>
-        </div>
+    <div class="topbar">
+      <div class="brand"><span class="brand-mark">⚖</span><span class="brand-name">Legal Retrieval Assistant</span></div>
+      <div class="topbar-right"><span class="system-status">● LOCAL / PRIVATE</span></div>
+    </div>
     """,
     unsafe_allow_html=True,
 )
@@ -433,9 +430,8 @@ def _run_query(question, progress_slot, mode, shortlisted_cases=None):
 
 st.markdown(
     """
-        <main class="main-shell"><section class="query-page">
-        <div class="eyebrow">§ QUERY ENGINE V.4</div>
-        <h1>Ask a Legal Question</h1>
+    <main class="main-shell"><section class="query-page">
+      <h1>Ask a Legal Question</h1>
       <p class="intro">Enter your query, cite specific statutes, or describe a fact pattern. The system will retrieve relevant case law and synthesize a memorandum.</p>
     </section></main>
     """,
@@ -503,10 +499,6 @@ if pending_warning:
 
 query_section = st.container(key="query-section")
 with query_section.form("legal-query", clear_on_submit=False):
-    st.markdown(
-        '<div class="form-top"><span class="options">&#9881; OPTIONS</span></div>',
-        unsafe_allow_html=True,
-    )
     question = st.text_area(
         "Legal question",
         key="query_draft",
