@@ -595,6 +595,8 @@ with query_section.form("legal-query", clear_on_submit=False):
 progress_slot = st.empty()
 run_request = st.session_state.pop("run_after_warning", None)
 if submitted and question.strip():
+    # show an inline spinner in the progress slot so the retrieve action feels clickable
+    progress_slot.markdown('<div class="loading-button"><span class="spinner"></span> Retrieving…</div>', unsafe_allow_html=True)
     from router import build_warning
     from stage1_case_retrieval import get_relevant_cases
 
