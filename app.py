@@ -624,7 +624,34 @@ if submitted and not question.strip():
 
 if "last_query_result" in st.session_state:
     result = st.session_state.last_query_result
+    verified = result.get("verified", False)
+    # Both generation-layer and routing-layer "no answer" paths produce an
+    # unverified result with a fixed message string.  Detect either prefix
+    # so the INSUFFICIENT badge covers both cases.
+    _insufficient_prefixes = (
+        "No verified answer could be found",      # generate_verified_answer fallback
+        "No sufficient, relevant cases were found",  # _run_query insufficient_cases path
+    )
+    if not verified and result["answer"].startswith(_insufficient_prefixes):
+        badge_class = "trust-tag insufficient"
+        badge_label = "§ INSUFFICIENT"
+    elif verified:
+        badge_class = "trust-tag"
+        badge_label = "§ VERIFIED"
+    else:
+        badge_class = "trust-tag unverified"
+        badge_label = "§ UNVERIFIED"
+
+    # Convert newlines to <br> so paragraphs render correctly inside the
+    # raw-HTML div.  html.escape() is applied first so any < > & in the
+    # answer don't break the surrounding HTML structure.
+    escaped_answer = html.escape(result["answer"]).replace("\n", "<br>")
     st.markdown(
-        f'<div class="result-card">{html.escape(result["answer"])}</div>',
+        f'<div class="result-card">'
+        f'<div style="margin-bottom:12px;">'
+        f'<span class="{badge_class}">{badge_label}</span>'
+        f'</div>'
+        f'{escaped_answer}'
+        f'</div>',
         unsafe_allow_html=True,
     )
