@@ -8,7 +8,7 @@ one dict per non-blank page.
 import os
 import re
 
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF (fitz alias is deprecated since 1.28.2)
 
 # ---------------------------------------------------------------------------
 # Indian Kanoon footer pattern

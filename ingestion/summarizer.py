@@ -4,7 +4,9 @@ Prompt construction and LLM call for the case-summarization stage.
 
 import ollama
 
-WORD_LIMIT = 6000  # approx. words before truncation kicks in
+WORD_LIMIT = 6000   # total word budget sent to the LLM
+HEAD_WORDS = 3000   # words taken from the beginning of the document
+TAIL_WORDS = 3000   # words taken from the end of the document
 
 
 def build_summary_prompt(case_text):
@@ -13,13 +15,11 @@ def build_summary_prompt(case_text):
     150 words, covering: what the case concerns, the holding/outcome, and
     key facts — grounded only in the provided text.
 
-    KNOWN LIMITATION: for very long documents (roughly 6000+ words), the
-    text is truncated before being inserted into the prompt. This is a
-    naive word-count truncation, not a smart/semantic one, so it may cut
-    off mid-sentence and could drop material from later in the document
-    (e.g. the final holding, if it's stated only at the end). A proper
-    fix would involve chunking + map-reduce summarization instead of a
-    single truncated prompt, but that's out of scope for this function.
+    Truncation strategy: when a document exceeds WORD_LIMIT words, the
+    function retains the first HEAD_WORDS words **and** the last TAIL_WORDS
+    words, separated by a clear marker.  This prevents the naive head-only
+    cut that previously dropped the court's final holding (which is often
+    stated only in the last few paragraphs of a long judgment).
 
     Args:
         case_text: full (or partial) text of the case to summarize.
@@ -29,14 +29,19 @@ def build_summary_prompt(case_text):
     """
     words = case_text.split()
     if len(words) > WORD_LIMIT:
-        case_text = " ".join(words[:WORD_LIMIT])
-        case_text += "\n\n[TRUNCATED: document exceeded 6000 words; text cut off above]"
+        head = " ".join(words[:HEAD_WORDS])
+        tail = " ".join(words[-TAIL_WORDS:])
+        case_text = (
+            head
+            + "\n\n[... MIDDLE OF DOCUMENT OMITTED FOR BREVITY ...]\n\n"
+            + tail
+        )
 
     prompt = f"""You are a legal assistant. Summarize the following legal case in under 150 words.
 
 Your summary must cover:
 1. What the case concerns (the general subject matter/dispute)
-2. The holding or outcome (how the court ruled)
+2. The holding or outcome — in particular, focus on the court's **final ruling** on the main issue (e.g. the specific legal test applied, the statutory interpretation adopted, or the relief granted)
 3. Key facts relevant to the outcome
 
 Base your summary ONLY on the text provided below. Do not add information, case law, or context that isn't present in the text. If the provided text doesn't contain enough information for any of the three points above, say so briefly rather than inventing details.
