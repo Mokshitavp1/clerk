@@ -5,13 +5,18 @@ verify_answer checks a generated answer against the chunks it was built
 from, to catch invented facts or citations that don't actually match the
 chunk text they claim to come from.
 
-Two layers of protection:
+Three layers of protection — the first two run before any LLM call:
   1. _check_citations_deterministic: mechanically validates every Sources:
      line entry against the actual (case_name, page_number) pairs from
-     the chunks passed in.  Runs before any LLM call; failures are hard
-     and not subject to model discretion.
+     the chunks passed in.  Hard fail, not subject to model discretion.
+  1b. _check_has_content: rejects answers whose body (everything before
+     the Sources: line) contains fewer than BODY_MIN_WORDS words.  An
+     answer that is only a Sources: line with no prose has zero claims to
+     contradict, which would otherwise let the LLM verifier return
+     VERIFIED: yes on a functionally empty answer.
   2. _build_verification_prompt / verify_answer LLM call: checks claim
-     groundedness and citation accuracy for entries that passed layer 1.
+     groundedness and citation accuracy for entries that passed layers 1
+     and 1b.
 """
 
 import re
@@ -19,6 +24,56 @@ import re
 import ollama
 
 from generate import generate_answer
+
+# Minimum word count for the answer body (everything before the Sources: line).
+# 15 words is just above the shortest plausible single-sentence legal answer;
+# anything under this threshold is functionally empty and should be rejected
+# without consulting the LLM verifier.
+BODY_MIN_WORDS = 15
+
+
+def _check_has_content(answer_text):
+    """
+    Deterministically reject answers that have no substantive prose body
+    before the Sources: line.
+
+    Splits answer_text on the first line that starts with "Sources:" (exact
+    case, matching generate_answer's output format).  Everything before that
+    line is the body.  Returns False if the body — after stripping whitespace
+    — contains fewer than BODY_MIN_WORDS words, True otherwise.
+
+    This is layer 1b in verify_answer: it runs after
+    _check_citations_deterministic and before the LLM call.  An answer that
+    is only a Sources: line has zero claims to contradict, so the LLM
+    verifier would otherwise return VERIFIED: yes on empty content.
+
+    Args:
+        answer_text: the generated answer text, including its "Sources:" line.
+
+    Returns:
+        dict: {"verified": bool, "issue": str or None}.  issue is None when
+        verified is True.  When False, issue contains a human-readable
+        description of what failed.
+    """
+    body_lines = []
+    for line in answer_text.splitlines():
+        if line.startswith("Sources:"):
+            break
+        body_lines.append(line)
+
+    body = " ".join(body_lines).strip()
+    word_count = len(body.split()) if body else 0
+
+    if word_count < BODY_MIN_WORDS:
+        return {
+            "verified": False,
+            "issue": (
+                "The answer contains no substantive content — only a Sources line."
+                f" (body word count: {word_count}; minimum required: {BODY_MIN_WORDS})"
+            ),
+        }
+
+    return {"verified": True, "issue": None}
 
 
 def _check_citations_deterministic(answer_text, chunks):
@@ -232,14 +287,20 @@ def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct"):
     the matching chunk's text, and whether the answer's claims are
     grounded rather than invented.
 
-    Runs two layers of checks in order:
+    Runs three layers of checks in order:
       1. Deterministic citation pre-check (_check_citations_deterministic):
          mechanically validates every Sources-line entry against the actual
          (case_name, page_number) tuples in chunks.  Hard fail, no LLM
          involved.  A case merely discussed within chunk text — but not
          provided as its own chunk — is rejected here.
-      2. LLM groundedness check: only reached if layer 1 passes.  Verifies
-         that the claims in the answer are supported by the matched excerpts.
+      1b. Content pre-check (_check_has_content): rejects answers whose
+         body (everything before the Sources: line) contains fewer than
+         BODY_MIN_WORDS words.  Hard fail, no LLM involved.  Prevents
+         a sources-only answer from passing the LLM verifier unchallenged
+         because there are no claims to contradict.
+      2. LLM groundedness check: only reached if layers 1 and 1b pass.
+         Verifies that the claims in the answer are supported by the
+         matched excerpts.
 
     Args:
         answer_text: the generated answer text to check, including its
@@ -263,6 +324,11 @@ def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct"):
     if not deterministic_result["verified"]:
         return deterministic_result
 
+    # Layer 1b: deterministic content pre-check (no LLM, hard fail).
+    content_result = _check_has_content(answer_text)
+    if not content_result["verified"]:
+        return content_result
+
     # Layer 2: LLM groundedness + citation-content check.
     prompt = _build_verification_prompt(answer_text, chunks)
 
@@ -272,6 +338,7 @@ def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct"):
     )
 
     return _parse_verification_response(response["message"]["content"])
+
 
 
 def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", progress_callback=None):

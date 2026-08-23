@@ -15,12 +15,13 @@ are marked so you can skip them during quick iteration:
 
 import sys
 import os
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
 
-from verifier import _parse_verification_response, verify_answer
+from verifier import _parse_verification_response, verify_answer, _check_has_content
 from fixtures import (
     SUPPORTED_ANSWER_TEXT,
     UNSUPPORTED_ANSWER_TEXT,
@@ -151,7 +152,85 @@ class TestDeterministicCitationCheck:
 
 
 # ---------------------------------------------------------------------------
-# verify_answer — end-to-end, calls the real local model
+# _check_has_content — pure function, no Ollama needed
+# ---------------------------------------------------------------------------
+
+from verifier import _check_has_content, BODY_MIN_WORDS
+
+class TestContentCheck:
+    """Tests for the layer-1b deterministic body-content pre-check.
+
+    All cases run instantly without Ollama — _check_has_content is a pure
+    function with no external dependencies.
+    """
+
+    # Reuse the same chunk set as the citation tests (content doesn't matter
+    # for _check_has_content, but we need *something* for the verify_answer
+    # integration test below).
+    CHUNKS = [
+        {"case_name": "Smith_v_Jones_2019", "page_number": 4, "text": "dummy"},
+    ]
+    VALID_SOURCES = "Sources: Smith_v_Jones_2019, p. 4"
+
+    def test_sources_only_is_rejected(self):
+        """An answer that is literally only a Sources: line has no body."""
+        answer = "Sources: Smith_v_Jones_2019, p. 4"
+        res = _check_has_content(answer)
+        assert res["verified"] is False
+        assert "no substantive content" in res["issue"]
+
+    def test_sources_only_with_blank_lines_is_rejected(self):
+        """Blank lines before the Sources: line do not count as body words."""
+        answer = "\n\n\nSources: Smith_v_Jones_2019, p. 4"
+        res = _check_has_content(answer)
+        assert res["verified"] is False
+        assert "no substantive content" in res["issue"]
+
+    def test_body_below_threshold_is_rejected(self):
+        """A body with fewer than BODY_MIN_WORDS words must be rejected."""
+        # Construct a body that is exactly BODY_MIN_WORDS - 1 words.
+        short_body = " ".join(["word"] * (BODY_MIN_WORDS - 1))
+        answer = f"{short_body}\n\n{self.VALID_SOURCES}"
+        res = _check_has_content(answer)
+        assert res["verified"] is False
+        assert "no substantive content" in res["issue"]
+
+    def test_body_above_threshold_passes(self):
+        """A body with at least BODY_MIN_WORDS words must be accepted."""
+        sufficient_body = " ".join(["word"] * BODY_MIN_WORDS)
+        answer = f"{sufficient_body}\n\n{self.VALID_SOURCES}"
+        res = _check_has_content(answer)
+        assert res["verified"] is True
+        assert res["issue"] is None
+
+    def test_multi_paragraph_body_counted_correctly(self):
+        """Blank lines inside the body should not disrupt word counting."""
+        para1 = " ".join(["word"] * 8)
+        para2 = " ".join(["word"] * 8)
+        # Total 16 words, split across two paragraphs with a blank line between
+        answer = f"{para1}\n\n{para2}\n\n{self.VALID_SOURCES}"
+        res = _check_has_content(answer)
+        assert res["verified"] is True
+        assert res["issue"] is None
+
+    def test_verify_answer_short_circuits_without_llm_call(self):
+        """verify_answer must not call ollama.chat when the body is empty.
+
+        The content pre-check (layer 1b) runs before the LLM call — if it
+        rejects the answer, ollama.chat should never be invoked.
+        """
+        # A sources-only answer that has a valid citation (passes layer 1)
+        # but no prose body (fails layer 1b).
+        answer = self.VALID_SOURCES  # no body at all
+
+        with patch("verifier.ollama.chat") as mock_chat:
+            result = verify_answer(answer, self.CHUNKS)
+
+        mock_chat.assert_not_called()
+        assert result["verified"] is False
+        assert "no substantive content" in result["issue"]
+
+
 # ---------------------------------------------------------------------------
 
 requires_ollama = pytest.mark.requires_ollama
