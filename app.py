@@ -400,25 +400,25 @@ with st.sidebar:
         st.markdown(f'<div class="sync-status" style="margin: 8px 22px 0;">&#x25CF;&nbsp;{count} new {noun} not yet indexed</div>', unsafe_allow_html=True)
 
     # ── Build button ───────────────────────────────────────────────────
-        # show BUILD as a slot so we can replace it with a spinner while building
-        build_slot = st.empty()
-        if build_slot.button(
-            "BUILD / UPDATE KNOWLEDGE BASE",
-            key="build-knowledge-base",
-            use_container_width=True,
-            disabled=not uploaded_cases,
-        ):
-            if not uploaded_cases:
-                st.info("Upload one or more PDFs before rebuilding the knowledge base.")
-            else:
-                # replace the button with an inline spinner element while building
-                build_slot.markdown('<div class="loading-button"><span class="spinner"></span> Building…</div>', unsafe_allow_html=True)
-                try:
-                    _build_uploaded_cases(uploaded_cases)
-                    build_slot.success("Knowledge base updated.")
-                except Exception:
-                    build_slot.error("Failed to build knowledge base. See logs.")
-                st.rerun()
+    # show BUILD as a slot so we can replace it with a spinner while building
+    build_slot = st.empty()
+    if build_slot.button(
+        "BUILD / UPDATE KNOWLEDGE BASE",
+        key="build-knowledge-base",
+        use_container_width=True,
+        disabled=not uploaded_cases,
+    ):
+        if not uploaded_cases:
+            st.info("Upload one or more PDFs before rebuilding the knowledge base.")
+        else:
+            # replace the button with an inline spinner element while building
+            build_slot.markdown('<div class="loading-button"><span class="spinner"></span> Building…</div>', unsafe_allow_html=True)
+            try:
+                _build_uploaded_cases(uploaded_cases)
+                build_slot.success("Knowledge base updated.")
+            except Exception:
+                build_slot.error("Failed to build knowledge base. See logs.")
+            st.rerun()
 
     # ── Divider + History ──────────────────────────────────────────────
     st.markdown(
