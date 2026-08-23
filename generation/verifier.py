@@ -88,6 +88,17 @@ def _normalize_case_name_for_comparison(name):
        " on 15 january 1963") because the LLM frequently drops them,
        and steps 1+2 alone do not resolve an omitted date suffix when
        doing a substring check.
+
+    NOTE — accepted risk of step 3: date-stripping trades exact-match
+    strictness for tolerance of the model's formatting habits.  If the
+    corpus ever contains two cases with identical party names but different
+    dates (e.g., an original judgment and its appeal), this normalization
+    could conflate them — page_number is still checked exactly, but the
+    case_name substring match alone would no longer disambiguate between
+    the two versions.  With the current 5-case corpus of clearly distinct
+    names this is very unlikely to occur, but revisit this if the corpus
+    grows to include interlocutory orders, remands, or appeals of existing
+    cases.
     """
     norm = name.lower().replace("_", " ").strip()
     # Remove trailing date suffixes: " on <day> <month> <year>"
