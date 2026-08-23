@@ -144,6 +144,33 @@ class TestDeterministicCitationCheck:
         assert res["verified"] is False
         assert "no page number found" in res["issue"]
 
+    def test_underscore_vs_space_variant_passes(self):
+        # The chunks have "Smith_v_Jones_2019"
+        # The answer cites "Smith v Jones 2019"
+        answer = "Some text.\n\nSources: Smith v Jones 2019, p. 4"
+        res = _check_citations_deterministic(answer, self.chunks)
+        assert res["verified"] is True
+
+    def test_omitted_date_suffix_passes(self):
+        # Create a new chunk with an Indian Kanoon style date suffix
+        chunks = self.chunks + [{"case_name": "Fateh_Chand_vs_Balkishan_Das_on_15_January_1963", "page_number": 7, "text": "dummy"}]
+        # Cite it without the date suffix and with spaces instead of underscores
+        answer = "Some text.\n\nSources: Fateh Chand vs Balkishan Das, p. 7"
+        res = _check_citations_deterministic(answer, chunks)
+        assert res["verified"] is True
+
+    def test_genuinely_wrong_case_fails(self):
+        answer = "Some text.\n\nSources: Smith v Acme, p. 4"
+        res = _check_citations_deterministic(answer, self.chunks)
+        assert res["verified"] is False
+        assert "no provided excerpt has this exact (case_name, page_number) pair" in res["issue"]
+
+    def test_hallucinated_case_sharing_words_fails(self):
+        # Shares words with Smith_v_Jones_2019 but is not the same case
+        answer = "Some text.\n\nSources: Smith v Doe 2019, p. 4"
+        res = _check_citations_deterministic(answer, self.chunks)
+        assert res["verified"] is False
+        
     def test_multiple_citations_to_same_case(self):
         # Tests that splitting by ';' correctly treats each as a separate tuple
         answer = "Some text.\n\nSources: Smith_v_Jones_2019, p. 4; Smith_v_Jones_2019, p. 7"

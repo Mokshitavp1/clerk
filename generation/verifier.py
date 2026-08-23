@@ -76,6 +76,25 @@ def _check_has_content(answer_text):
     return {"verified": True, "issue": None}
 
 
+def _normalize_case_name_for_comparison(name):
+    """
+    Normalize a case name for resilient matching. Used only for comparison
+    to tolerate cosmetic formatting differences (like replacing underscores
+    with spaces) rather than paraphrasing or abbreviation.
+
+    1. Lowercases the name.
+    2. Replaces underscores with spaces.
+    3. Strips trailing Indian Kanoon-style date suffixes (e.g.,
+       " on 15 january 1963") because the LLM frequently drops them,
+       and steps 1+2 alone do not resolve an omitted date suffix when
+       doing a substring check.
+    """
+    norm = name.lower().replace("_", " ").strip()
+    # Remove trailing date suffixes: " on <day> <month> <year>"
+    norm = re.sub(r"\s+on\s+\d{1,2}\s+[a-z]+\s+\d{4}$", "", norm)
+    return norm
+
+
 def _check_citations_deterministic(answer_text, chunks):
     """
     Mechanically validate every Sources-line entry in answer_text against
@@ -142,12 +161,12 @@ def _check_citations_deterministic(answer_text, chunks):
             continue
 
         page_num = int(page_match.group(1))
-        # Accept entry if any chunk shares this page and the chunk's
-        # case_name appears as a substring of the citation string.  We
-        # use substring rather than equality because the citation may
-        # omit the full path-style name.
+        norm_entry = _normalize_case_name_for_comparison(entry)
+        
+        # Accept entry if any chunk shares this page and the normalized chunk's
+        # case_name appears as a substring of the normalized citation string.
         matched = any(
-            str(page_num) == str(pg) and cn in entry
+            str(page_num) == str(pg) and _normalize_case_name_for_comparison(cn) in norm_entry
             for (cn, pg) in valid_pairs
         )
         if not matched:
