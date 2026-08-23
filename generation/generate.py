@@ -57,11 +57,15 @@ EXCERPTS:
 QUESTION:
 {question}
 
-Write your answer using only the excerpts above. At the end of your answer, add a \
-line starting with "Sources:" that lists every case name and page number you \
-actually relied on to answer (format: "Sources: <case_name>, p. <page_number>; \
-<case_name>, p. <page_number>"). Only list a source if you actually used it — do \
-not list excerpts you didn't rely on.
+Write your answer using only the excerpts above. Only list a source if you actually relied on it to write the answer.
+
+CRITICAL FORMATTING INSTRUCTIONS FOR THE "Sources:" LINE:
+1. The "Sources:" line MUST be the very last line of your entire response. Do not place it at the beginning, and do not add any text, warnings, or closing remarks after it.
+2. Every case name in the Sources line MUST be copied character-for-character exactly as it appears inside the brackets of the excerpt labels above. Do not reword the name, do not replace underscores with spaces, and do not shorten it.
+3. Format the line exactly as shown in this example, separating multiple sources with a semicolon:
+
+Example correctly formatted line:
+Sources: Smith_v_Jones_2019, p. 4; State_v_Doe_Inc_2020, p. 12
 
 ANSWER:"""
 
