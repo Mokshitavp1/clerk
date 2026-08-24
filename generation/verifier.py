@@ -365,6 +365,7 @@ def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct"):
     response = ollama.chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
+        options={"temperature": 0},
     )
 
     return _parse_verification_response(response["message"]["content"])

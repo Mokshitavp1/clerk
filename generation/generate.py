@@ -57,15 +57,14 @@ EXCERPTS:
 QUESTION:
 {question}
 
-Write your answer using only the excerpts above. Only list a source if you actually relied on it to write the answer.
+Write a detailed, substantive answer to the question using only the excerpts above. Only list a source if you actually relied on it to write the answer.
 
-CRITICAL FORMATTING INSTRUCTIONS FOR THE "Sources:" LINE:
-1. The "Sources:" line MUST be the very last line of your entire response. Do not place it at the beginning, and do not add any text, warnings, or closing remarks after it.
-2. Every case name in the Sources line MUST be copied character-for-character exactly as it appears inside the brackets of the excerpt labels above. Do not reword the name, do not replace underscores with spaces, and do not shorten it.
-3. Format the line exactly as shown in this example, separating multiple sources with a semicolon:
-
-Example correctly formatted line:
-Sources: Smith_v_Jones_2019, p. 4; State_v_Doe_Inc_2020, p. 12
+CRITICAL FORMATTING INSTRUCTIONS:
+1. You MUST first write your substantive answer body. Do not start your response with the Sources line.
+2. The "Sources:" line MUST be the very last line of your entire response. Do not add any text, warnings, or closing remarks after it.
+3. Every case name in the Sources line MUST be copied character-for-character exactly as it appears inside the brackets of the excerpt labels above. Do not reword the name, do not replace underscores with spaces, and do not shorten it.
+4. Format the Sources line exactly as shown in this example, separating multiple sources with a semicolon:
+   Sources: Smith_v_Jones_2019, p. 4; State_v_Doe_Inc_2020, p. 12
 
 ANSWER:"""
 
@@ -102,6 +101,7 @@ def generate_answer(question, chunks, model="qwen2.5:7b-instruct", failure_note=
     response = ollama.chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
+        options={"temperature": 0},
     )
 
     return response["message"]["content"]
