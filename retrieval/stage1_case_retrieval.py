@@ -6,21 +6,18 @@ Returns the contract 3.1 shape from CONTRACTS.md:
 """
 
 import chromadb
+import streamlit as st
 from sentence_transformers import SentenceTransformer
 
 CHROMA_PATH = "data/chroma_db"
 CASES_COLLECTION = "legal_cases"
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 
-# Loaded once per process, not per call.
-_embedding_model = None
 
-
+@st.cache_resource
 def _get_embedding_model():
-    global _embedding_model
-    if _embedding_model is None:
-        _embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
-    return _embedding_model
+    """Cache the embedding model across Streamlit reruns."""
+    return SentenceTransformer(EMBEDDING_MODEL_NAME)
 
 
 def get_relevant_cases(query, top_k=5):

@@ -7,21 +7,18 @@ Returns the contract 3.2 shape from CONTRACTS.md:
 """
 
 import chromadb
+import streamlit as st
 from sentence_transformers import SentenceTransformer
 
 CHROMA_PATH = "data/chroma_db"
 CHUNKS_COLLECTION = "legal_chunks"
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 
-# Loaded once per process, not per call.
-_embedding_model = None
 
-
+@st.cache_resource
 def _get_embedding_model():
-    global _embedding_model
-    if _embedding_model is None:
-        _embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
-    return _embedding_model
+    """Cache the embedding model across Streamlit reruns."""
+    return SentenceTransformer(EMBEDDING_MODEL_NAME)
 
 
 def get_relevant_chunks(query, case_names, top_k=6):
