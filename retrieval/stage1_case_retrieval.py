@@ -6,18 +6,11 @@ Returns the contract 3.1 shape from CONTRACTS.md:
 """
 
 import chromadb
-import streamlit as st
-from sentence_transformers import SentenceTransformer
+
+from embeddings import get_embedding_model
 
 CHROMA_PATH = "data/chroma_db"
 CASES_COLLECTION = "legal_cases"
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
-
-
-@st.cache_resource
-def _get_embedding_model():
-    """Cache the embedding model across Streamlit reruns."""
-    return SentenceTransformer(EMBEDDING_MODEL_NAME)
 
 
 def get_relevant_cases(query, top_k=5):
@@ -35,7 +28,7 @@ def get_relevant_cases(query, top_k=5):
         sorted by relevance_score descending. Empty list if the
         collection doesn't exist yet or has no records.
     """
-    model = _get_embedding_model()
+    model = get_embedding_model()
     client = chromadb.PersistentClient(path=CHROMA_PATH)
 
     try:

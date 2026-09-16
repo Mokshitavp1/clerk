@@ -6,7 +6,8 @@ case-level summary, both stored in ChromaDB.
 import os
 
 import chromadb
-from sentence_transformers import SentenceTransformer
+
+from embeddings import get_embedding_model
 
 from parser import chunk_pdf
 from summarizer import summarize_case
@@ -14,18 +15,6 @@ from summarizer import summarize_case
 CHROMA_PATH = "data/chroma_db"
 CHUNKS_COLLECTION = "legal_chunks"
 CASES_COLLECTION = "legal_cases"
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
-
-# Loaded once per process rather than per call — re-loading the model on
-# every ingest_new_case() call would be needlessly slow for multi-PDF runs.
-_embedding_model = None
-
-
-def _get_embedding_model():
-    global _embedding_model
-    if _embedding_model is None:
-        _embedding_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
-    return _embedding_model
 
 
 def check_if_exists(case_name):
@@ -66,7 +55,7 @@ def ingest_new_case(filepath):
         extension), for convenience/logging by the caller.
     """
     case_name = os.path.splitext(os.path.basename(filepath))[0]
-    model = _get_embedding_model()
+    model = get_embedding_model()
     client = chromadb.PersistentClient(path=CHROMA_PATH)
 
     # --- 1. Chunk-level: embed and store each chunk ---
