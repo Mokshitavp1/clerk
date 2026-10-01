@@ -39,7 +39,7 @@ def get_relevant_cases(query, top_k=5):
     if collection.count() == 0:
         return []
 
-    query_embedding = model.encode([query]).tolist()
+    query_embedding = model.encode([query], normalize_embeddings=True).tolist()
 
     results = collection.query(
         query_embeddings=query_embedding,
@@ -51,18 +51,8 @@ def get_relevant_cases(query, top_k=5):
 
     relevant_cases = []
     for metadata, distance in zip(case_names, distances):
-        # NOTE: Chroma returns a distance, not a similarity, and the exact
-        # meaning of "distance" depends on the collection's configured
-        # space (defaults to squared L2 unless created with
-        # hnsw:space="cosine"). To keep relevance_score in the 0.0-1.0
-        # range regardless of which metric was used at collection-creation
-        # time, we convert with 1 / (1 + distance): monotonically
-        # decreasing in distance, bounded in (0, 1]. This is NOT a true
-        # cosine similarity score — if you need that specifically, the
-        # "legal_cases" collection must be created with
-        # metadata={"hnsw:space": "cosine"} and this should be changed to
-        # score = 1 - (distance / 2).
-        relevance_score = 1.0 / (1.0 + distance)
+        # This is cosine similarity because the collections use hnsw:space=cosine.
+        relevance_score = max(0.0, min(1.0, 1.0 - distance))
 
         relevant_cases.append({
             "case_name": metadata["case_name"],

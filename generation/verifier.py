@@ -23,7 +23,7 @@ import re
 
 import ollama
 
-from generate import generate_answer
+from generate import generate_answer, generate_answer_structured
 
 # Minimum word count for the answer body (everything before the Sources: line).
 # 15 words is just above the shortest plausible single-sentence legal answer;
@@ -101,6 +101,12 @@ def _normalize_case_name_for_comparison(name):
     cases.
     """
     norm = name.lower().replace("_", " ").strip()
+    # Normalize all separator variants ('v', 'v.', 'vs', 'vs.', 'versus') to
+    # a single canonical 'vs' so substring matching is stable regardless of
+    # which form the model or a PDF filename uses.  Previously only 'v' and
+    # 'v.' were handled, causing 'vs.' in LLM output to escape normalization
+    # and silently fail the Layer 1c hallucination check.
+    norm = re.sub(r"\s+v(?:ersus|s\.?|\.?)\s+", " vs ", norm)
     # Remove trailing date suffixes: " on <day> <month> <year>"
     norm = re.sub(r"\s+on\s+\d{1,2}\s+[a-z]+\s+\d{4}$", "", norm)
     return norm
@@ -201,6 +207,89 @@ def _check_citations_deterministic(answer_text, chunks):
     return {"verified": True, "issue": None}
 
 
+def _check_hallucinated_cases(answer_text, chunks):
+    """
+    Deterministic check to scan the answer body for any case-name-like
+    mentions that aren't in the provided chunks. Fast failure.
+    """
+    import re
+    # Match strings like "Kunwar Chiranjit Singh v. Hat Swarup" or "State_v_Doe"
+    pattern = re.compile(r"\b[A-Z][A-Za-z.]+(?:\s+v\.?\s+|_v_)[A-Z][A-Za-z.]+\b")
+    
+    # Strip the sources line if present
+    body = answer_text
+    match = re.search(r"(?im)^\s*Sources:\s*(.*)$", answer_text)
+    if match:
+        body = answer_text[:match.start()]
+    
+    mentions = pattern.findall(body)
+    
+    valid_names = {_normalize_case_name_for_comparison(c['case_name']) for c in chunks}
+    
+    bad_mentions = []
+    for mention in mentions:
+        norm_mention = _normalize_case_name_for_comparison(mention)
+        if not any(norm_mention in valid for valid in valid_names) and not any(valid in norm_mention for valid in valid_names):
+            bad_mentions.append(mention)
+            
+    if bad_mentions:
+        return {
+            "verified": False,
+            "issue": f"You mentioned {', '.join(bad_mentions)}, which was not in the provided excerpts — remove it."
+        }
+    return {"verified": True, "issue": None}
+
+
+def _check_claims_deterministic(claims, chunks):
+    """
+    Mechanically validate every claim against its cited chunk before any LLM check.
+    Each claim's tag must exist in chunks.
+    Every number, dollar amount, year and "Section N" token in the claim must
+    appear in the cited chunk's text.
+    """
+    import re
+    tag_to_chunk = {}
+    for i, c in enumerate(chunks, 1):
+        tag_to_chunk[f"C{i}"] = c
+        
+    for item in claims:
+        claim_text = item.get("claim", "")
+        tag = item.get("tag", "")
+        
+        if not tag:
+            return False, "A claim is missing a source tag."
+            
+        if tag not in tag_to_chunk:
+            return False, f"Claim tag {tag} is invalid or not in provided excerpts."
+            
+        chunk = tag_to_chunk[tag]
+        chunk_text = chunk["text"]
+        case_name_norm = chunk["case_name"].lower()
+        
+        claim_norm = re.sub(r"\s+", " ", claim_text.lower().replace(",", ""))
+        chunk_norm = re.sub(r"\s+", " ", chunk_text.lower().replace(",", ""))
+        
+        patterns = [
+            (r"section \d+", "Section reference"),
+            (r"\$\d+(?:\.\d+)?", "Dollar amount"),
+            (r"\b\d+(?:\.\d+)?\b", "Number")
+        ]
+        
+        for pat, desc in patterns:
+            for m in re.finditer(pat, claim_norm):
+                token = m.group(0)
+                # Years (4-digit numbers) might be in the claim but only appear
+                # in the cited chunk's case_name (e.g. "Smith_v_Jones_2019"),
+                # not the text body. If so, don't fail groundedness.
+                if desc == "Number" and len(token) == 4 and token in case_name_norm:
+                    continue
+                if token not in chunk_norm:
+                    return False, f"The {desc.lower()} '{token}' was not found in excerpt {tag}."
+                    
+    return True, None
+
+
+
 def _build_verification_prompt(answer_text, chunks):
     """
     Build a prompt asking an LLM to check an answer's groundedness and
@@ -220,10 +309,14 @@ def _build_verification_prompt(answer_text, chunks):
     Returns:
         str: a complete verification prompt.
     """
+    _CHUNK_CHAR_LIMIT = 1200
     excerpt_blocks = []
     for chunk in chunks:
         label = f"[{chunk['case_name']}, p. {chunk['page_number']}]"
-        excerpt_blocks.append(f"{label}\n{chunk['text']}")
+        text = chunk["text"]
+        if len(text) > _CHUNK_CHAR_LIMIT:
+            text = text[:_CHUNK_CHAR_LIMIT] + "…"
+        excerpt_blocks.append(f"{label}\n{text}")
     excerpts_text = "\n\n".join(excerpt_blocks)
 
     # Build a compact list of the authoritative (case_name, page) pairs so
@@ -289,7 +382,7 @@ def _parse_verification_response(response_text):
     issue_line = None
 
     for line in response_text.splitlines():
-        stripped = line.strip()
+        stripped = line.strip().replace("*", "")
         if stripped.upper().startswith("VERIFIED:"):
             verified_line = stripped.split(":", 1)[1].strip().lower()
         elif stripped.upper().startswith("ISSUE:"):
@@ -311,7 +404,7 @@ def _parse_verification_response(response_text):
     return {"verified": verified, "issue": issue}
 
 
-def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct"):
+def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct", claims=None):
     """
     Check whether each citation in answer_text is actually supported by
     the matching chunk's text, and whether the answer's claims are
@@ -328,7 +421,9 @@ def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct"):
          BODY_MIN_WORDS words.  Hard fail, no LLM involved.  Prevents
          a sources-only answer from passing the LLM verifier unchallenged
          because there are no claims to contradict.
-      2. LLM groundedness check: only reached if layers 1 and 1b pass.
+      1c. Hallucinated cases check.
+      1d. Deterministic claim-level check (_check_claims_deterministic).
+      2. LLM groundedness check: only reached if layers 1 pass.
          Verifies that the claims in the answer are supported by the
          matched excerpts.
 
@@ -349,27 +444,55 @@ def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct"):
         what's wrong if verified is False; issue is None if verified is
         True.
     """
+    import json
+    import re
+    
+    clean_answer_text = answer_text.strip()
+
     # Layer 1: deterministic citation pre-check (no LLM, hard fail).
-    deterministic_result = _check_citations_deterministic(answer_text, chunks)
+    deterministic_result = _check_citations_deterministic(clean_answer_text, chunks)
     if not deterministic_result["verified"]:
         return deterministic_result
 
     # Layer 1b: deterministic content pre-check (no LLM, hard fail).
-    content_result = _check_has_content(answer_text)
+    content_result = _check_has_content(clean_answer_text)
     if not content_result["verified"]:
         return content_result
+        
+    # Layer 1c: deterministic hallucinated cases check (no LLM, hard fail).
+    hallucination_result = _check_hallucinated_cases(clean_answer_text, chunks)
+    if not hallucination_result["verified"]:
+        return hallucination_result
+        
+    # Layer 1d: deterministic claim-level check (no LLM, hard fail).
+    if claims:
+        ok, issue = _check_claims_deterministic(claims, chunks)
+        if not ok:
+            return {"verified": False, "issue": issue}
 
     # Layer 2: LLM groundedness + citation-content check.
-    prompt = _build_verification_prompt(answer_text, chunks)
+    prompt = _build_verification_prompt(clean_answer_text, chunks)
 
     response = ollama.chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        options={"temperature": 0},
+        options={"num_ctx": 8192, "temperature": 0, "num_predict": 800},
+        keep_alive="30m",
     )
 
     return _parse_verification_response(response["message"]["content"])
 
+
+def _retry_note(issue, chunks):
+    """Turn an opaque unresolved-citation issue into an instruction the model can act on."""
+    bad = re.findall(r"unresolved citation:\s*(C\d+)", issue or "")
+    if not bad:
+        return issue
+    valid = ", ".join(f"C{i}" for i in range(1, len(chunks) + 1))
+    return (
+        f"You cited {', '.join(sorted(set(bad)))}, but the only valid tags are "
+        f"{valid}. Use only those tags on the Sources line."
+    )
 
 
 def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", progress_callback=None):
@@ -397,8 +520,8 @@ def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", prog
         answer" message and verified is False — this function never
         returns an answer that failed verification.
     """
-    answer_text = generate_answer(question, chunks, model=model)
-    result = verify_answer(answer_text, chunks, model=model)
+    answer_text, claims = generate_answer_structured(question, chunks, model=model)
+    result = verify_answer(answer_text, chunks, model=model, claims=claims)
 
     if result["verified"]:
         if progress_callback:
@@ -406,12 +529,14 @@ def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", prog
         return {"answer": answer_text, "verified": True}
 
     # One retry, steered away from whatever verify_answer flagged.
+    # Convert "[unresolved citation: C3]" into a human-readable instruction.
+    retry_note = _retry_note(result["issue"], chunks)
     if progress_callback:
-        progress_callback({"verified": False, "retrying": True, "issue": result["issue"]})
-    retry_answer_text = generate_answer(
-        question, chunks, model=model, failure_note=result["issue"]
+        progress_callback({"verified": False, "retrying": True, "issue": retry_note})
+    retry_answer_text, retry_claims = generate_answer_structured(
+        question, chunks, model=model, failure_note=retry_note
     )
-    retry_result = verify_answer(retry_answer_text, chunks, model=model)
+    retry_result = verify_answer(retry_answer_text, chunks, model=model, claims=retry_claims)
 
     if retry_result["verified"]:
         if progress_callback:
@@ -426,38 +551,112 @@ def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", prog
     }
 
 
-if __name__ == "__main__":
-    sample_chunks = [
-        {
-            "text": (
-                "The court held that the defendant breached the implied covenant of "
-                "good faith by unreasonably delaying performance under the contract."
-            ),
-            "case_name": "Smith_v_Jones_2019",
-            "page_number": 4,
-        },
-        {
-            "text": (
-                "Damages were awarded in the amount of $42,000, reflecting the "
-                "plaintiff's lost profits during the delay period."
-            ),
-            "case_name": "Smith_v_Jones_2019",
-            "page_number": 7,
-        },
-    ]
 
-    supported_answer = (
-        "The court found the defendant breached the implied covenant of good faith by "
-        "delaying performance, and awarded $42,000 in damages for the plaintiff's lost "
-        "profits.\n\nSources: Smith_v_Jones_2019, p. 4; Smith_v_Jones_2019, p. 7"
-    )
-    unsupported_answer = (
-        "The court awarded $500,000 in punitive damages due to fraud.\n\n"
-        "Sources: Smith_v_Jones_2019, p. 4"
-    )
+def generate_verified_answer_per_case(
+    question, cases, model="qwen2.5:7b-instruct", progress_callback=None
+):
+    """
+    Run generate_verified_answer independently per case, then combine only
+    the cases that individually passed verification.  A case that fails
+    verification is dropped from the combined answer rather than dragging
+    the whole response down to unverified.
+
+    This is the Deep Thinking replacement for the pooled generate_verified_answer
+    call.  The pooled version feeds all cases' chunks into one context window,
+    which lets chunk-overlapping cases corrupt each other's citations and cause
+    cross-case hallucination.  Isolating each case's generate+verify loop
+    ensures that a noisy case (ambiguous chunks, low-quality excerpts) cannot
+    contaminate the answer sections for the other cases in the shortlist.
+
+    Verification contract — "fail closed per claim, not per answer":
+    - A case whose answer fails verification is silently omitted from the
+      combined output; its failure is not surfaced to the user.
+    - If NO case produces a verified answer, the function returns the same
+      fixed fallback string as generate_verified_answer (CONTRACTS.md 3.4),
+      with verified=False.
+    - If at least one case passes, verified=True and the answer body is the
+      verified sections joined by blank lines.
+
+    Shape note (CONTRACTS.md 3.4 extension):
+    - The return dict is {"answer": str, "verified": bool}, identical to
+      generate_verified_answer.  The "partially verified" state (some cases
+      dropped) is NOT exposed in the dict — callers see verified=True as long
+      as at least one section passed, and the answer text contains only those
+      sections that cleared verification.  This is intentional: nothing
+      unverified ever surfaces in the returned answer, which satisfies the
+      fail-closed principle at the claim level rather than the whole-answer
+      level.  See CONTRACTS.md 3.4 for the documented tradeoff.
+
+    Args:
+        question: the user's natural-language question.
+        cases: list of case dicts in the shape from self_rag.get_graded_cases
+            (CONTRACTS.md 3.3): [{"case_name": str, "relevance_score": float,
+            "chunks": [<chunk dict per 3.2>, ...]}, ...].
+        model: name of the local Ollama model to call.  Defaults to
+            "qwen2.5:7b-instruct" per CONTRACTS.md.
+        progress_callback: optional callable accepting the same signal dict
+            as generate_verified_answer's progress_callback — forwarded
+            transparently for each per-case call so the UI gets live status.
+
+    Returns:
+        dict: {"answer": str, "verified": bool} per CONTRACTS.md 3.4.
+    """
+    sections = []
+    any_verified = False
+
+    for case in cases:
+        result = generate_verified_answer(
+            question,
+            case["chunks"],
+            model=model,
+            progress_callback=progress_callback,
+        )
+        if result["verified"]:
+            sections.append(
+                f"Regarding {case['case_name'].replace('_', ' ')}:\n{result['answer']}"
+            )
+            any_verified = True
+
+    if not any_verified:
+        return {
+            "answer": (
+                "No verified answer could be found in the uploaded documents "
+                "for this question."
+            ),
+            "verified": False,
+        }
+
+    return {"answer": "\n\n".join(sections), "verified": True}
+
+
+if __name__ == "__main__":
+    import sys
+    import os
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    from fixtures import SUPPORTED_ANSWER_TEXT, UNSUPPORTED_ANSWER_TEXT, CHUNKS_SMITH
 
     print("--- Verifying a grounded answer ---")
-    print(verify_answer(supported_answer, sample_chunks))
+    print(verify_answer(SUPPORTED_ANSWER_TEXT, CHUNKS_SMITH))
 
     print("\n--- Verifying an unsupported answer ---")
-    print(verify_answer(unsupported_answer, sample_chunks))
+    print(verify_answer(UNSUPPORTED_ANSWER_TEXT, CHUNKS_SMITH))
+    
+    print("\n--- Testing VERIFIER_DATA leakage ---")
+    try:
+        from generate import build_answer_prompt # Ensure it can run
+        res = generate_verified_answer("What damages did the plaintiff receive?", CHUNKS_SMITH)
+        assert "VERIFIER_DATA" not in res["answer"], "VERIFIER_DATA leaked into answer!"
+        print("VERIFIER_DATA assertion passed.")
+    except Exception as e:
+        print(f"Skipping or failed API test: {e}")
+    
+    print("\n--- Testing _check_claims_deterministic ---")
+    claims_ok = [{"claim": "Damages were awarded in the amount of $42,000", "tag": "C2"}]
+    print(f"Good claims: {_check_claims_deterministic(claims_ok, CHUNKS_SMITH)}")
+    
+    claims_bad_number = [{"claim": "The court awarded $500,000", "tag": "C2"}]
+    print(f"Bad number: {_check_claims_deterministic(claims_bad_number, CHUNKS_SMITH)}")
+    
+    claims_bad_tag = [{"claim": "Damages were $42,000", "tag": "C3"}]
+    print(f"Bad tag: {_check_claims_deterministic(claims_bad_tag, CHUNKS_SMITH)}")
+

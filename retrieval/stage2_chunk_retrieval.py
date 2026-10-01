@@ -7,14 +7,42 @@ Returns the contract 3.2 shape from CONTRACTS.md:
 """
 
 import chromadb
+import time
+import sys
+import numpy as np
 
 from embeddings import get_embedding_model
+from reranker import rerank
 
 CHROMA_PATH = "data/chroma_db"
 CHUNKS_COLLECTION = "legal_chunks"
 
+_bm25_index = None
+_bm25_corpus = None
+_bm25_count = -1
 
-def get_relevant_chunks(query, case_names, top_k=6):
+def get_bm25_index(collection):
+    global _bm25_index, _bm25_corpus, _bm25_count
+    current_count = collection.count()
+    if _bm25_index is None or _bm25_count != current_count:
+        all_docs = collection.get()
+        _bm25_corpus = []
+        for i, text in enumerate(all_docs["documents"]):
+            _bm25_corpus.append({
+                "id": all_docs["ids"][i],
+                "text": text,
+                "case_name": all_docs["metadatas"][i]["case_name"],
+                "page_number": all_docs["metadatas"][i]["page_number"]
+            })
+        import re
+        tokenized = [re.findall(r"\w+", doc["text"].lower()) for doc in _bm25_corpus]
+        from rank_bm25 import BM25Okapi
+        _bm25_index = BM25Okapi(tokenized)
+        _bm25_count = current_count
+    return _bm25_index, _bm25_corpus
+
+
+def get_relevant_chunks(query, case_names, top_k=6, rerank_flag=True):
     """
     Embed a query and search the "legal_chunks" collection for the top_k
     most similar chunks, restricted to chunks whose case_name metadata is
@@ -45,41 +73,84 @@ def get_relevant_chunks(query, case_names, top_k=6):
     if collection.count() == 0:
         return []
 
-    query_embedding = model.encode([query]).tolist()
+    query_embedding_np = model.encode([query], normalize_embeddings=True)[0]
+    query_embedding = [query_embedding_np.tolist()]
 
     # Chroma's where clause needs $in for a list of allowed values, even
     # when case_names has only one element.
     where_filter = {"case_name": {"$in": case_names}}
 
-    results = collection.query(
+    fetch_k = 12 if rerank_flag else top_k
+
+    dense_results = collection.query(
         query_embeddings=query_embedding,
-        n_results=top_k,
+        n_results=fetch_k,
         where=where_filter,
     )
 
-    documents = results["documents"][0]
-    metadatas = results["metadatas"][0]
-    distances = results["distances"][0]
+    union_candidates = {}
 
-    relevant_chunks = []
-    for text, metadata, distance in zip(documents, metadatas, distances):
-        # Same distance -> similarity conversion used in get_relevant_cases,
-        # for consistency across both retrieval stages. See that function's
-        # comment for the caveat about Chroma's default distance metric
-        # (squared L2 unless the collection was created with
-        # hnsw:space="cosine").
-        relevance_score = 1.0 / (1.0 + distance)
+    if dense_results["ids"] and dense_results["ids"][0]:
+        documents = dense_results["documents"][0]
+        metadatas = dense_results["metadatas"][0]
+        distances = dense_results["distances"][0]
+        ids = dense_results["ids"][0]
 
-        relevant_chunks.append({
-            "text": text,
-            "case_name": metadata["case_name"],
-            "page_number": metadata["page_number"],
-            "relevance_score": relevance_score,
-        })
+        for c_id, text, metadata, distance in zip(ids, documents, metadatas, distances):
+            # This is cosine similarity because the collections use hnsw:space=cosine.
+            score = max(0.0, min(1.0, 1.0 - distance))
+            union_candidates[c_id] = {
+                "text": text,
+                "case_name": metadata["case_name"],
+                "page_number": metadata["page_number"],
+                "relevance_score": score,
+            }
 
+    # BM25 retrieval
+    bm25_index, bm25_corpus = get_bm25_index(collection)
+    import re
+    tokenized_query = re.findall(r"\w+", query.lower())
+    bm25_scores = bm25_index.get_scores(tokenized_query)
+    
+    bm25_case_docs = []
+    for score, doc in zip(bm25_scores, bm25_corpus):
+        if doc["case_name"] in case_names:
+            bm25_case_docs.append((score, doc))
+            
+    bm25_case_docs.sort(key=lambda x: x[0], reverse=True)
+    
+    missing_dense = []
+    for score, doc in bm25_case_docs[:fetch_k]:
+        c_id = doc["id"]
+        if c_id not in union_candidates:
+            c = {
+                "text": doc["text"],
+                "case_name": doc["case_name"],
+                "page_number": doc["page_number"],
+                "relevance_score": 0.0,
+            }
+            union_candidates[c_id] = c
+            missing_dense.append(c)
+            
+    if missing_dense and not rerank_flag:
+        texts = [c["text"] for c in missing_dense]
+        chunk_embeddings = model.encode(texts, normalize_embeddings=True)
+        for i, c in enumerate(missing_dense):
+            dot = np.dot(query_embedding_np, chunk_embeddings[i])
+            c["relevance_score"] = float(max(0.0, min(1.0, dot)))
+
+    relevant_chunks = list(union_candidates.values())
     relevant_chunks.sort(key=lambda c: c["relevance_score"], reverse=True)
 
-    return relevant_chunks[:top_k]
+    if rerank_flag:
+        t0 = time.time()
+        relevant_chunks = rerank(query, relevant_chunks, top_n=5)
+        t1 = time.time()
+        sys.stderr.write(f"Reranking took {t1 - t0:.2f} seconds.\n")
+    else:
+        relevant_chunks = relevant_chunks[:top_k]
+
+    return relevant_chunks
 
 
 if __name__ == "__main__":

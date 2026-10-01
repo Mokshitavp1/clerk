@@ -14,7 +14,7 @@
 | LLM for generation | `qwen2.5:7b-instruct` (via Ollama) | `generate.py`, `verifier.py`, `summarizer.py` |
 | LLM for verification | `qwen2.5:7b-instruct` (via Ollama) | `verifier.py` |
 | LLM for summarization | `qwen2.5:7b-instruct` (via Ollama) | `summarizer.py` |
-| Embedding model | `all-MiniLM-L6-v2` (sentence-transformers) | `ingest.py`, `stage1_case_retrieval.py`, `stage2_chunk_retrieval.py` |
+| Embedding model | `BAAI/bge-m3` (sentence-transformers) | `ingest.py`, `stage1_case_retrieval.py`, `stage2_chunk_retrieval.py` |
 
 **Rule:** If any module changes its model default, it must be updated in this table and in every other module that uses the same model, then flagged to both parties.
 
@@ -99,7 +99,7 @@ Parser output shape (from `parser.chunk_pdf`):
 
 `"cases"` is empty **exactly when** `"insufficient_cases"` is `True`.
 
-### 3.4 Generation output shape (from `verifier.generate_verified_answer`)
+### 3.4 Generation output shape (from `verifier.generate_verified_answer` and `verifier.generate_verified_answer_per_case`)
 
 ```python
 {"answer": str, "verified": bool}
@@ -111,6 +111,22 @@ When both generation attempts fail verification, `answer` is the fixed string:
 "No verified answer could be found in the uploaded documents for this question."
 ```
 and `verified` is `False`.
+
+#### 3.4.1 Per-case variant (`generate_verified_answer_per_case`) — Deep Thinking only
+
+`generate_verified_answer_per_case` takes a `cases` list (CONTRACTS.md 3.3 shape) instead of a flat `chunks` list, and runs `generate_verified_answer` independently per case before combining results.
+
+**"Fail closed per claim" tradeoff:**
+- A case whose individual answer fails verification is silently **dropped** from the combined output.
+- If **at least one** case passes verification, `verified=True` and `answer` contains only the verified sections, prefixed with `"Regarding <case_name>:\n"`.
+- If **no** case passes verification, the function returns the same fixed fallback string as the pooled version, with `verified=False`.
+- `verified=True` therefore means: *everything in the answer is verified*, **not** *every shortlisted case contributed a section*. This is intentional — a partial verified answer is more useful than none, and nothing unverified ever surfaces.
+
+**What callers must NOT assume:**
+- Do not infer from `verified=True` that all shortlisted cases were represented in the answer.
+- The "partially verified" internal state is not exposed in the return dict. Callers that need to know which cases were dropped must be restructured (this shape does not support that).
+
+
 
 ### 3.5 Warning shape (from `router.build_warning`)
 

@@ -14,6 +14,9 @@ for _folder in ("retrieval", "generation", "routing", "ingestion"):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
+from embeddings import get_embedding_model
+get_embedding_model()
+
 
 st.set_page_config(page_title="Legal Retrieval Assistant", layout="wide")
 inject_query_interaction_theme()
@@ -453,12 +456,59 @@ def _render_progress(slot, active_step, status):
     )
 
 
+def _cap_chunks(chunks, max_chunks=4):
+    """Keep only the top-N chunks by relevance_score before generation.
+
+    Reduces odds that two closely-related cases (e.g. Fateh_Chand /
+    Maula_Bux) both surface in the same prompt and get cross-attributed.
+    Chunk shape ({text, case_name, page_number, relevance_score}) is
+    unchanged; only the list length is bounded.
+    """
+    return sorted(chunks, key=lambda c: c["relevance_score"], reverse=True)[:max_chunks]
+
+
+def _cap_chunks_per_case(chunks, per_case=2):
+    """
+    Group chunks by case_name and keep only the top `per_case` chunks per
+    case, by relevance_score descending. Unlike a global cap, this
+    guarantees every case that survived grading still has SOME
+    representation in the prompt — bounded, not eliminated — so the
+    model can't lose an entire case's chunks and end up attributing that
+    case's concepts onto a case it does have text for (the Kailash_Nath /
+    Fateh_Chand failure).
+
+    Chunks arriving here are already sorted descending within each case
+    (get_relevant_chunks sorts, grade_chunks preserves order) — this
+    re-sorts defensively rather than assuming that holds.
+
+    Args:
+        chunks: list of chunk dicts (contract 3.2 shape).
+        per_case: max chunks to keep per distinct case_name.
+
+    Returns:
+        list[dict]: surviving chunks, sorted by relevance_score
+        descending across the whole list (not grouped by case), so
+        prompt ordering still favors the strongest material first.
+    """
+    by_case = {}
+    for chunk in chunks:
+        by_case.setdefault(chunk["case_name"], []).append(chunk)
+
+    capped = []
+    for case_chunks in by_case.values():
+        case_chunks_sorted = sorted(case_chunks, key=lambda c: c["relevance_score"], reverse=True)
+        capped.extend(case_chunks_sorted[:per_case])
+
+    capped.sort(key=lambda c: c["relevance_score"], reverse=True)
+    return capped
+
+
 def _run_query(question, progress_slot, mode, shortlisted_cases=None):
     """Run the Retrieve → Grade → Verify contract and update its live status."""
     from stage1_case_retrieval import get_relevant_cases
     from stage2_chunk_retrieval import get_relevant_chunks
     from self_rag import get_graded_cases
-    from verifier import generate_verified_answer
+    from verifier import generate_verified_answer, generate_verified_answer_per_case
     from router import decide_mode
 
     _render_progress(progress_slot, 0, "Searching the knowledge base for relevant cases…")
@@ -469,13 +519,19 @@ def _run_query(question, progress_slot, mode, shortlisted_cases=None):
         if resolved_mode == "fast" and shortlisted_cases
         else [case["case_name"] for case in shortlisted_cases]
     )
-    retrieved_chunks = get_relevant_chunks(question, case_names)
-
-    _render_progress(
-        progress_slot,
-        1,
-        f"Shortlisted {len(shortlisted_cases)} case{'s' if len(shortlisted_cases) != 1 else ''}; retrieved {len(retrieved_chunks)} relevant passages.",
-    )
+    if resolved_mode == "fast":
+        retrieved_chunks = get_relevant_chunks(question, case_names)
+        _render_progress(
+            progress_slot,
+            1,
+            f"Shortlisted {len(shortlisted_cases)} case{'s' if len(shortlisted_cases) != 1 else ''}; retrieved {len(retrieved_chunks)} relevant passages.",
+        )
+    else:
+        _render_progress(
+            progress_slot,
+            1,
+            f"Shortlisted {len(shortlisted_cases)} case{'s' if len(shortlisted_cases) != 1 else ''}.",
+        )
 
     def grade_status(signal):
         if signal["retrying"]:
@@ -491,24 +547,58 @@ def _run_query(question, progress_slot, mode, shortlisted_cases=None):
 
     if resolved_mode == "fast":
         _render_progress(progress_slot, 1, "Fast mode will use the highest-ranked case only.")
-        chunks = retrieved_chunks
+        chunks = _cap_chunks(retrieved_chunks)
     else:
         graded = get_graded_cases(question, progress_callback=grade_status)
         if graded["insufficient_cases"]:
             progress_slot.empty()
             return {"answer": "No sufficient, relevant cases were found in the uploaded documents.", "verified": False}
-        chunks = [chunk for case in graded["cases"] for chunk in case["chunks"]]
+        chunks = _cap_chunks_per_case(
+            [chunk for case in graded["cases"] for chunk in case["chunks"]]
+        )
     _render_progress(progress_slot, 2, "Generating a grounded response and checking its citations…")
 
     def verify_status(signal):
-        if signal["retrying"]:
-            _render_progress(progress_slot, 2, "Verification flagged an issue; retrying once with the verifier feedback.")
-        elif signal["verified"]:
+        if signal.get("retrying"):
+            issue_snippet = (signal.get("issue") or "")[:120]
+            _render_progress(
+                progress_slot,
+                2,
+                f"Verification flagged an issue; retrying once with the verifier feedback. "
+                f"({issue_snippet})",
+            )
+            print(f"[verifier] retrying — issue: {signal.get('issue')}")
+        elif signal.get("verified"):
             _render_progress(progress_slot, 2, "Verification passed cleanly.")
         else:
-            _render_progress(progress_slot, 2, "Verification could not produce a fully grounded answer.")
+            issue_snippet = (signal.get("issue") or "")[:120]
+            _render_progress(
+                progress_slot,
+                2,
+                f"Verification could not produce a fully grounded answer. ({issue_snippet})",
+            )
+            print(f"[verifier] failed — issue: {signal.get('issue')}")
 
-    result = generate_verified_answer(question, chunks, progress_callback=verify_status)
+    if resolved_mode == "fast":
+        result = generate_verified_answer(question, chunks, progress_callback=verify_status)
+    else:
+        # Deep Thinking: verify each case independently so a single noisy case
+        # cannot drag the whole answer down to unverified.  graded["cases"] carries
+        # the per-case chunk lists already; we do not need the flattened `chunks`.
+        # Cap each case to the same top-2 limit that _cap_chunks_per_case applied
+        # in the pooled path, so per-case context windows stay comparable in size.
+        capped_cases = [
+            {
+                **case,
+                "chunks": sorted(
+                    case["chunks"], key=lambda c: c["relevance_score"], reverse=True
+                )[:2],
+            }
+            for case in graded["cases"]
+        ]
+        result = generate_verified_answer_per_case(
+            question, capped_cases, progress_callback=verify_status
+        )
     progress_slot.empty()
     return result
 

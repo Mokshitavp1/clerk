@@ -18,14 +18,24 @@ from generate import generate_answer
 from verifier import verify_answer, generate_verified_answer
 from router import decide_mode
 
+def _cap_chunks_per_case(chunks, per_case=2):
+    """Mirror of app.py._cap_chunks_per_case — top-2 per case, then re-sorted."""
+    by_case = {}
+    for chunk in chunks:
+        by_case.setdefault(chunk["case_name"], []).append(chunk)
+
+    capped = []
+    for case_chunks in by_case.values():
+        case_chunks_sorted = sorted(case_chunks, key=lambda c: c["relevance_score"], reverse=True)
+        capped.extend(case_chunks_sorted[:per_case])
+
+    capped.sort(key=lambda c: c["relevance_score"], reverse=True)
+    return capped
+
 # -- Question --
 question = (
-    "My client paid an advance to a government contractor for a supply contract, "
-    "but before any work was done, the contract was cancelled. The contractor is "
-    "refusing to refund the advance, pointing to a clause that lets them keep it if "
-    "the deal falls through. Is there a similar case on whether that kind of "
-    "forfeiture is valid without proof the government actually suffered a loss? "
-    "(Liquidated damages vs. proof of loss - see Saw Pipes and Fateh Chand)"
+    "What did the Supreme Court establish in the case of Maula Bux v. Union of India "
+    "regarding the forfeiture of earnest money when a contract is breached?"
 )
 
 
@@ -50,13 +60,17 @@ def run_query_with_timing(q: str):
     t2 = time.time()
     print("stage2 (chunk retrieval): %.1fs  =>  %d chunk(s)" % (t2 - t1, len(chunks)))
 
+    # -- Cap to top-2 per case (mirrors app.py deep branch) --
+    chunks = _cap_chunks_per_case(chunks)
+    print("after cap              :           %d chunk(s) kept" % len(chunks))
+
     # -- Stage 3: generate answer --
-    answer_text = generate_answer(q, chunks)
+    answer_text = generate_answer(q, chunks, model="qwen2.5:7b-instruct")
     t3 = time.time()
     print("generate (LLM answer)  : %.1fs  =>  %d chars" % (t3 - t2, len(answer_text)))
 
     # -- Stage 4: verify answer --
-    result = verify_answer(answer_text, chunks)
+    result = verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct")
     t4 = time.time()
     print("verify                 : %.1fs  =>  verified=%s" % (t4 - t3, result['verified']))
     if not result["verified"]:

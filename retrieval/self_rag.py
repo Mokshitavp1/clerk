@@ -16,7 +16,9 @@ from stage1_case_retrieval import get_relevant_cases
 from stage2_chunk_retrieval import get_relevant_chunks
 
 
-def grade_chunks(chunks, relevance_floor=0.4):
+RELEVANCE_FLOOR = 0.4
+
+def grade_chunks(chunks, relevance_floor=RELEVANCE_FLOOR):
     """
     Filter out chunks whose relevance_score falls below relevance_floor.
 
@@ -65,45 +67,67 @@ def get_graded_cases(query, initial_top_k=5, min_cases_required=2, progress_call
         CONTRACTS.md 3.3. "cases" is empty exactly when
         insufficient_cases is True.
     """
-    top_k = initial_top_k
+    import time
+    import sys as _sys
+    import stage2_chunk_retrieval as _s2
 
-    # Attempt 1: initial_top_k. Attempt 2 (if needed): initial_top_k * 2.
-    # "Re-call Stage 1 once" means exactly one retry, not open-ended looping.
-    for attempt in range(2):
-        stage1_results = get_relevant_cases(query, top_k=top_k)
+    original_rerank = _s2.rerank
+    total_rerank_time = 0.0
 
-        surviving_cases = []
-        dropped_chunks = 0
-        for case in stage1_results:
-            case_name = case["case_name"]
+    def _timed_rerank(*args, **kwargs):
+        nonlocal total_rerank_time
+        t0 = time.time()
+        result = original_rerank(*args, **kwargs)
+        total_rerank_time += time.time() - t0
+        return result
 
-            chunks = get_relevant_chunks(query, [case_name])
-            graded_chunks, dropped_count_per_case = grade_chunks(chunks)
-            dropped_chunks += sum(dropped_count_per_case.values())
+    _s2.rerank = _timed_rerank
 
-            if graded_chunks:
-                surviving_cases.append({
-                    "case_name": case_name,
-                    "relevance_score": case["relevance_score"],
-                    "chunks": graded_chunks,
+    try:
+        top_k = initial_top_k
+
+        # Attempt 1: initial_top_k. Attempt 2 (if needed): initial_top_k * 2.
+        # "Re-call Stage 1 once" means exactly one retry, not open-ended looping.
+        for attempt in range(2):
+            stage1_results = get_relevant_cases(query, top_k=top_k)
+
+            surviving_cases = []
+            dropped_chunks = 0
+            for case in stage1_results:
+                case_name = case["case_name"]
+
+                chunks = get_relevant_chunks(query, [case_name])
+                graded_chunks, dropped_count_per_case = grade_chunks(chunks)
+                dropped_chunks += sum(dropped_count_per_case.values())
+
+                if graded_chunks:
+                    surviving_cases.append({
+                        "case_name": case_name,
+                        "relevance_score": case["relevance_score"],
+                        "chunks": graded_chunks,
+                    })
+
+            retrying = len(surviving_cases) < min_cases_required and attempt == 0
+            if progress_callback:
+                progress_callback({
+                    "attempt": attempt + 1,
+                    "shortlisted": len(stage1_results),
+                    "surviving": len(surviving_cases),
+                    "dropped_chunks": dropped_chunks,
+                    "retrying": retrying,
                 })
 
-        retrying = len(surviving_cases) < min_cases_required and attempt == 0
-        if progress_callback:
-            progress_callback({
-                "attempt": attempt + 1,
-                "shortlisted": len(stage1_results),
-                "surviving": len(surviving_cases),
-                "dropped_chunks": dropped_chunks,
-                "retrying": retrying,
-            })
+            if len(surviving_cases) >= min_cases_required:
+                return {"cases": surviving_cases, "insufficient_cases": False}
 
-        if len(surviving_cases) >= min_cases_required:
-            return {"cases": surviving_cases, "insufficient_cases": False}
+            top_k *= 2  # only takes effect if we loop again (attempt 0 -> 1)
 
-        top_k *= 2  # only takes effect if we loop again (attempt 0 -> 1)
-
-    return {"cases": [], "insufficient_cases": True}
+        return {"cases": [], "insufficient_cases": True}
+    finally:
+        _s2.rerank = original_rerank
+        _sys.stderr.write(
+            f"[self_rag] Total rerank time for query: {total_rerank_time:.2f}s\n"
+        )
 
 
 if __name__ == "__main__":

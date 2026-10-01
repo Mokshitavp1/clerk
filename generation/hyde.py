@@ -52,6 +52,7 @@ HYPOTHETICAL EXCERPT (under 100 words):"""
     response = ollama.chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
+        options={"num_ctx": 8192, "temperature": 0},
     )
 
     return response["message"]["content"]

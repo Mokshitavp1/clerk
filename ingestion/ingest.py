@@ -63,14 +63,17 @@ def ingest_new_case(filepath):
 
     if chunks:
         chunk_texts = [c["text"] for c in chunks]
-        chunk_embeddings = model.encode(chunk_texts).tolist()
+        chunk_embeddings = model.encode(chunk_texts, normalize_embeddings=True).tolist()
         chunk_ids = [f"{case_name}_p{c['page_number']}_{i}" for i, c in enumerate(chunks)]
         chunk_metadatas = [
             {"case_name": c["case_name"], "page_number": c["page_number"]}
             for c in chunks
         ]
 
-        chunks_collection = client.get_or_create_collection(name=CHUNKS_COLLECTION)
+        chunks_collection = client.get_or_create_collection(
+            name=CHUNKS_COLLECTION,
+            metadata={"hnsw:space": "cosine"}
+        )
         chunks_collection.add(
             ids=chunk_ids,
             embeddings=chunk_embeddings,
@@ -81,9 +84,12 @@ def ingest_new_case(filepath):
     # --- 2. Case-level: generate, embed, and store the summary ---
     # summarize_case expects {text, page_number} dicts, which chunks already are.
     summary_text = summarize_case(chunks)
-    summary_embedding = model.encode([summary_text]).tolist()[0]
+    summary_embedding = model.encode([summary_text], normalize_embeddings=True).tolist()[0]
 
-    cases_collection = client.get_or_create_collection(name=CASES_COLLECTION)
+    cases_collection = client.get_or_create_collection(
+        name=CASES_COLLECTION,
+        metadata={"hnsw:space": "cosine"}
+    )
     cases_collection.add(
         ids=[case_name],
         embeddings=[summary_embedding],
@@ -127,12 +133,25 @@ def replace_case(filepath):
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) not in (2, 3):
-        print("Usage: python ingest.py <path_to_pdf> [--replace]")
+    if len(sys.argv) not in (2, 3, 4):
+        print("Usage: python ingest.py <path_to_pdf> [--replace] [--reset]")
         sys.exit(1)
 
     path = sys.argv[1]
-    if len(sys.argv) == 3 and sys.argv[2] == "--replace":
+    
+    if "--reset" in sys.argv:
+        print("Resetting ChromaDB collections...")
+        client = chromadb.PersistentClient(path=CHROMA_PATH)
+        try:
+            client.delete_collection(name=CHUNKS_COLLECTION)
+        except Exception:
+            pass
+        try:
+            client.delete_collection(name=CASES_COLLECTION)
+        except Exception:
+            pass
+
+    if "--replace" in sys.argv:
         name = replace_case(path)
         print(f"Replaced case: {name}")
     else:
