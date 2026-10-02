@@ -21,6 +21,23 @@ _bm25_index = None
 _bm25_corpus = None
 _bm25_count = -1
 
+# Module-level rerank timer.  Call reset_rerank_timer() before a query batch
+# and get_rerank_seconds() after to read the total wall time spent in rerank
+# across all get_relevant_chunks calls since the last reset.  This avoids any
+# need for callers to monkeypatch the rerank symbol.
+_rerank_seconds = 0.0
+
+
+def reset_rerank_timer():
+    """Reset the accumulated rerank time to zero."""
+    global _rerank_seconds
+    _rerank_seconds = 0.0
+
+
+def get_rerank_seconds():
+    """Return total seconds spent in rerank since the last reset_rerank_timer() call."""
+    return _rerank_seconds
+
 def get_bm25_index(collection):
     global _bm25_index, _bm25_corpus, _bm25_count
     current_count = collection.count()
@@ -145,8 +162,9 @@ def get_relevant_chunks(query, case_names, top_k=6, rerank_flag=True):
     if rerank_flag:
         t0 = time.time()
         relevant_chunks = rerank(query, relevant_chunks, top_n=5)
-        t1 = time.time()
-        sys.stderr.write(f"Reranking took {t1 - t0:.2f} seconds.\n")
+        _rerank_seconds_delta = time.time() - t0
+        global _rerank_seconds
+        _rerank_seconds += _rerank_seconds_delta
     else:
         relevant_chunks = relevant_chunks[:top_k]
 

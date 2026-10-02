@@ -514,24 +514,6 @@ def _run_query(question, progress_slot, mode, shortlisted_cases=None):
     _render_progress(progress_slot, 0, "Searching the knowledge base for relevant cases…")
     shortlisted_cases = shortlisted_cases if shortlisted_cases is not None else get_relevant_cases(question)
     resolved_mode = decide_mode(shortlisted_cases) if mode == "Auto" else mode.lower()
-    case_names = (
-        [shortlisted_cases[0]["case_name"]]
-        if resolved_mode == "fast" and shortlisted_cases
-        else [case["case_name"] for case in shortlisted_cases]
-    )
-    if resolved_mode == "fast":
-        retrieved_chunks = get_relevant_chunks(question, case_names)
-        _render_progress(
-            progress_slot,
-            1,
-            f"Shortlisted {len(shortlisted_cases)} case{'s' if len(shortlisted_cases) != 1 else ''}; retrieved {len(retrieved_chunks)} relevant passages.",
-        )
-    else:
-        _render_progress(
-            progress_slot,
-            1,
-            f"Shortlisted {len(shortlisted_cases)} case{'s' if len(shortlisted_cases) != 1 else ''}.",
-        )
 
     def grade_status(signal):
         if signal["retrying"]:
@@ -546,9 +528,29 @@ def _run_query(question, progress_slot, mode, shortlisted_cases=None):
         _render_progress(progress_slot, 1, message)
 
     if resolved_mode == "fast":
+        # Fast mode: retrieve chunks for the single top-ranked case only.
+        case_names = (
+            [shortlisted_cases[0]["case_name"]]
+            if shortlisted_cases
+            else []
+        )
+        retrieved_chunks = get_relevant_chunks(question, case_names)
+        _render_progress(
+            progress_slot,
+            1,
+            f"Shortlisted {len(shortlisted_cases)} case{'s' if len(shortlisted_cases) != 1 else ''};"
+            f" retrieved {len(retrieved_chunks)} relevant passages.",
+        )
         _render_progress(progress_slot, 1, "Fast mode will use the highest-ranked case only.")
         chunks = _cap_chunks(retrieved_chunks)
     else:
+        # Deep mode: get_graded_cases does its own per-case Stage 2 retrieval.
+        # Do NOT call get_relevant_chunks here — it would be wasted work.
+        _render_progress(
+            progress_slot,
+            1,
+            f"Shortlisted {len(shortlisted_cases)} case{'s' if len(shortlisted_cases) != 1 else ''}.",
+        )
         graded = get_graded_cases(question, progress_callback=grade_status)
         if graded["insufficient_cases"]:
             progress_slot.empty()

@@ -12,8 +12,14 @@ Returns the contract 3.3 shape from CONTRACTS.md:
     }
 """
 
+import sys
+
 from stage1_case_retrieval import get_relevant_cases
-from stage2_chunk_retrieval import get_relevant_chunks
+from stage2_chunk_retrieval import (
+    get_relevant_chunks,
+    reset_rerank_timer,
+    get_rerank_seconds,
+)
 
 
 RELEVANCE_FLOOR = 0.4
@@ -67,21 +73,11 @@ def get_graded_cases(query, initial_top_k=5, min_cases_required=2, progress_call
         CONTRACTS.md 3.3. "cases" is empty exactly when
         insufficient_cases is True.
     """
-    import time
-    import sys as _sys
-    import stage2_chunk_retrieval as _s2
-
-    original_rerank = _s2.rerank
-    total_rerank_time = 0.0
-
-    def _timed_rerank(*args, **kwargs):
-        nonlocal total_rerank_time
-        t0 = time.time()
-        result = original_rerank(*args, **kwargs)
-        total_rerank_time += time.time() - t0
-        return result
-
-    _s2.rerank = _timed_rerank
+    # Reset the per-query rerank accumulator in stage2_chunk_retrieval before
+    # we start issuing per-case get_relevant_chunks calls.  The accumulator
+    # lives in the module so it is safe across any number of concurrent calls
+    # within a single process — no monkeypatching needed.
+    reset_rerank_timer()
 
     try:
         top_k = initial_top_k
@@ -124,15 +120,12 @@ def get_graded_cases(query, initial_top_k=5, min_cases_required=2, progress_call
 
         return {"cases": [], "insufficient_cases": True}
     finally:
-        _s2.rerank = original_rerank
-        _sys.stderr.write(
-            f"[self_rag] Total rerank time for query: {total_rerank_time:.2f}s\n"
+        sys.stderr.write(
+            f"[self_rag] Total rerank time for query: {get_rerank_seconds():.2f}s\n"
         )
 
 
 if __name__ == "__main__":
-    import sys
-
     if len(sys.argv) != 2:
         print("Usage: python self_rag.py '<query>'")
         sys.exit(1)
