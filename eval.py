@@ -23,10 +23,10 @@ def _sha1_file(path):
     return h.hexdigest()
 
 
-def _check_cites_expected(answer_text, expected_case, expected_pages):
+def _check_cites_expected(answer_text, expected_cases, expected_pages):
     """
     Return True iff the answer's Sources/citations line contains a substring
-    matching expected_case AND at least one integer from expected_pages.
+    matching any expected case AND at least one integer from expected_pages.
 
     Operates on the plain answer text (no markup).  Returns False for
     empty, abstained, or unverified answers.
@@ -43,10 +43,12 @@ def _check_cites_expected(answer_text, expected_case, expected_pages):
         return False
 
     # Normalise for comparison the same way verifier does
-    norm_case = expected_case.lower().replace("_", " ")
+    if isinstance(expected_cases, str):
+        expected_cases = [expected_cases]
+    norm_cases = [case.lower().replace("_", " ") for case in expected_cases]
     norm_sources = sources_line.lower().replace("_", " ")
 
-    case_found = norm_case in norm_sources
+    case_found = any(norm_case in norm_sources for norm_case in norm_cases)
     page_found = any(
         f"p. {pg}" in norm_sources or f"p.{pg}" in norm_sources
         for pg in expected_pages
@@ -105,7 +107,10 @@ def run_eval(full_mode=False, model=None, group=None):
 
     for i, q in enumerate(questions):
         question_text = q['question']
-        expected_case = q['expected_case']
+        expected_cases = q.get('expected_cases')
+        expected_case = q.get('expected_case')
+        if expected_cases is None:
+            expected_cases = [expected_case]
         expected_pages = q['expected_pages']
 
         # ---------------------------
@@ -113,7 +118,9 @@ def run_eval(full_mode=False, model=None, group=None):
         # ---------------------------
         cases = get_relevant_cases(question_text, top_k=5)
         top_1_case = cases[0]['case_name'] if cases else None
-        case_ok = (top_1_case == expected_case)
+        # Cross-case questions are a case-level hit when either supporting
+        # judgment is ranked first.  Single-case behavior is unchanged.
+        case_ok = top_1_case in expected_cases
 
         # Get chunks for the retrieved cases
         case_names = [c['case_name'] for c in cases]
@@ -122,18 +129,26 @@ def run_eval(full_mode=False, model=None, group=None):
         scores = [round(c['relevance_score'], 3) for c in chunks]
         num_chunks = len(chunks)
 
-        # Check if the expected page from the expected case is in the top-6 chunks
-        page_ok = False
-        for c in chunks:
-            if c['case_name'] == expected_case and c['page_number'] in expected_pages:
-                page_ok = True
-                break
+        # A cross-case item needs at least one of its supporting pages in the
+        # top six. Pair each cross-case name with its corresponding page to
+        # avoid accepting a coincidentally identical page number from the
+        # other expected case.
+        expected_page_targets = (
+            set(zip(expected_cases, expected_pages))
+            if q.get('type') == 'cross'
+            else {(expected_case, page) for page in expected_pages}
+        )
+        page_ok = any(
+            (c['case_name'], c['page_number']) in expected_page_targets
+            for c in chunks
+        )
 
         scores_str = ", ".join(map(str, scores))
 
         res = {
             "question": question_text,
             "expected_case": expected_case,
+            "expected_cases": expected_cases,
             "expected_pages": expected_pages,
             "top_1_case_correct": case_ok,
             "expected_page_in_top_6": page_ok,
@@ -166,7 +181,7 @@ def run_eval(full_mode=False, model=None, group=None):
 
             # cites_expected: True only when verified and citations match
             if verified:
-                cites_expected = _check_cites_expected(answer_text, expected_case, expected_pages)
+                cites_expected = _check_cites_expected(answer_text, expected_cases, expected_pages)
             else:
                 cites_expected = False
 
