@@ -1,27 +1,169 @@
 [
   {
-    "question": "TODO: Example question 1?",
-    "expected_case": "TODO_Case_Name_1",
-    "expected_pages": [1]
+    "question": "Can mere forbearance by the promisee in instituting proceedings or giving notice of rescission be considered as an extension of the time for performance under Section 63 of the Indian Contract Act?",
+    "expected_pages": [
+      9
+    ],
+    "expected_case": "M_S_Kailash_Nath_Associates_vs_Delhi_Development_Authority_Anr_on_9_January_2015"
   },
   {
-    "question": "TODO: Example question 2?",
-    "expected_case": "TODO_Case_Name_2",
-    "expected_pages": [2]
+    "question": "What was the High Court's decision regarding the amount to be awarded to the plaintiff, and what interest rate was applied?",
+    "expected_pages": [
+      4
+    ],
+    "expected_case": "Maula_Bux_vs_Union_Of_India_on_19_August_1969"
   },
   {
-    "question": "TODO: Example question 3?",
-    "expected_case": "TODO_Case_Name_3",
-    "expected_pages": [3]
+    "question": "What are the key requirements for the buyer under the terms of business regarding deposits and payment for the stores ordered?",
+    "expected_pages": [
+      4
+    ],
+    "expected_case": "Shree_Hanuman_Cotton_Mills_Ors_vs_Tata_Air_Craft_Ltd_on_28_October_1969"
   },
   {
-    "question": "TODO: Example question 4?",
-    "expected_case": "TODO_Case_Name_4",
-    "expected_pages": [4]
+    "question": "Can the promisee in a contract, under certain circumstances, extend the time for performance unilaterally without the promisor's agreement?",
+    "expected_pages": [
+      10
+    ],
+    "expected_case": "M_S_Kailash_Nath_Associates_vs_Delhi_Development_Authority_Anr_on_9_January_2015"
   },
   {
-    "question": "TODO: Example question 5?",
-    "expected_case": "TODO_Case_Name_5",
-    "expected_pages": [5]
+    "question": "According to the judgment, what does the phrase 'whether or not actual damage or loss is proved to have been caused thereby' mean in the context of section 74 of the Indian Contract Act?",
+    "expected_pages": [
+      1
+    ],
+    "expected_case": "Maula_Bux_vs_Union_Of_India_on_19_August_1969"
+  },
+  {
+    "question": "According to the passage, what is the nature of the amount stipulated as a penalty or liquidated damages in a contract?",
+    "expected_pages": [
+      9
+    ],
+    "expected_case": "Fateh_Chand_vs_Balkishan_Das_on_15_January_1963"
+  },
+  {
+    "question": "What conditions must be met for an arbitral tribunal to hold oral hearings, according to Section 24 of the passage?",
+    "expected_pages": [
+      4
+    ],
+    "expected_case": "Oil_Natural_Gas_Corporation_Ltd_vs_Saw_Pipes_Ltd_on_17_April_2003"
+  },
+  {
+    "question": "What distinguishes a deposit from a part payment in the context of a sales contract, according to the passage?",
+    "expected_pages": [
+      8
+    ],
+    "expected_case": "Shree_Hanuman_Cotton_Mills_Ors_vs_Tata_Air_Craft_Ltd_on_28_October_1969"
+  },
+  {
+    "question": "What did the Delhi High Court ruling in Writ Petition No.2395 of 1990 determine regarding the appellant's claim of discrimination?",
+    "expected_pages": [
+      4
+    ],
+    "expected_case": "M_S_Kailash_Nath_Associates_vs_Delhi_Development_Authority_Anr_on_9_January_2015"
+  },
+  {
+    "question": "Under what circumstances can a court award reasonable compensation in a breach of contract case where actual damage or loss has not been proven?",
+    "expected_pages": [
+      7
+    ],
+    "expected_case": "Maula_Bux_vs_Union_Of_India_on_19_August_1969"
+  },
+  {
+    "question": "Does the expression 'if the contract contains any other stipulation by way of penalty' apply to stipulations other than those requiring the payment of money after the contract is broken?",
+    "expected_pages": [
+      9
+    ],
+    "expected_case": "Fateh_Chand_vs_Balkishan_Das_on_15_January_1963"
+  },
+  {
+    "question": "What conditions must be met for an arbitral award to be considered valid and binding according to the passage?",
+    "expected_pages": [
+      5
+    ],
+    "expected_case": "Oil_Natural_Gas_Corporation_Ltd_vs_Saw_Pipes_Ltd_on_17_April_2003"
+  },
+  {
+    "question": "Based on the principles outlined, under what circumstances can the seller be entitled to forfeit the earnest money paid by the vendee?",
+    "expected_pages": [
+      11
+    ],
+    "expected_case": "Shree_Hanuman_Cotton_Mills_Ors_vs_Tata_Air_Craft_Ltd_on_28_October_1969"
+  },
+  {
+    "question": "What was the Chief Justice's conclusion regarding the correspondence between the purchaser and vendors in Anandram Mangturam v. Bholaram Tanumal, and why was there no agreement to extend the delivery date?",
+    "expected_pages": [
+      9
+    ],
+    "expected_case": "M_S_Kailash_Nath_Associates_vs_Delhi_Development_Authority_Anr_on_9_January_2015"
+  },
+  {
+    "question": "In the absence of price fluctuations, how can a party demonstrate loss when a contract is breached due to non-performance?",
+    "expected_pages": [
+      29
+    ],
+    "expected_case": "Oil_Natural_Gas_Corporation_Ltd_vs_Saw_Pipes_Ltd_on_17_April_2003"
+  },
+  {
+    "question": "What must the appellants have established in order for the respondents to have had the opportunity to argue that the forfeiture clause was not a penalty?",
+    "expected_pages": [
+      16
+    ],
+    "expected_case": "M_S_Kailash_Nath_Associates_vs_Delhi_Development_Authority_Anr_on_9_January_2015"
+  },
+  {
+    "question": "Does section 74 of the Indian Contract Act apply to cases where the aggrieved party seeks to forfeit an amount already received under the contract, and if so, what is the court's jurisdiction in such cases?",
+    "expected_pages": [
+      6
+    ],
+    "expected_case": "Maula_Bux_vs_Union_Of_India_on_19_August_1969"
+  },
+  {
+    "question": "In a contract where goods are to be supplied over a period of time, how should the court determine whether the breaching party has suffered any loss, and does the fluctuation of market prices play a role in this determination, as illustrated in the Maula Bux case involving the supply of potatoes, poultry eggs, and fish to the Government of India?",
+    "expected_pages": [
+      7,
+      29
+    ],
+    "expected_cases": [
+      "Maula_Bux_vs_Union_Of_India_on_19_August_1969",
+      "Oil_Natural_Gas_Corporation_Ltd_vs_Saw_Pipes_Ltd_on_17_April_2003"
+    ],
+    "type": "cross"
+  },
+  {
+    "question": "Can the amount paid by the appellant be considered as a deposit for the performance of the contract, or does it fall under the category of liquidated damages for breach of the agreed delivery timeline, and how does the arbitral tribunal's decision in this case affect the claim made by the plaintiff to forfeit Rs. 24,000/-?",
+    "expected_pages": [
+      7,
+      17
+    ],
+    "expected_cases": [
+      "Fateh_Chand_vs_Balkishan_Das_on_15_January_1963",
+      "Oil_Natural_Gas_Corporation_Ltd_vs_Saw_Pipes_Ltd_on_17_April_2003"
+    ],
+    "type": "cross"
+  },
+  {
+    "question": "Can a promisee unilaterally extend the time for payment under Section 63 of the Indian Contract Act, and if so, does this apply to earnest money payments in the event of a contract failure due to the vendee's fault?",
+    "expected_pages": [
+      10,
+      11
+    ],
+    "expected_cases": [
+      "M_S_Kailash_Nath_Associates_vs_Delhi_Development_Authority_Anr_on_9_January_2015",
+      "Shree_Hanuman_Cotton_Mills_Ors_vs_Tata_Air_Craft_Ltd_on_28_October_1969"
+    ],
+    "type": "cross"
+  },
+  {
+    "question": "In the context of contractual deposits and breaches, how does the court determine whether a forfeiture clause is enforceable, and how does the nature of the parties' business operations (e.g., stock-in-trade vs. manufacturing) influence the assessment of loss in cases where deposits are forfeited due to non-performance?",
+    "expected_pages": [
+      29,
+      16
+    ],
+    "expected_cases": [
+      "Oil_Natural_Gas_Corporation_Ltd_vs_Saw_Pipes_Ltd_on_17_April_2003",
+      "M_S_Kailash_Nath_Associates_vs_Delhi_Development_Authority_Anr_on_9_January_2015"
+    ],
+    "type": "cross"
   }
 ]
