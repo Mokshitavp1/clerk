@@ -727,6 +727,7 @@ if submitted and not question.strip():
 if "last_query_result" in st.session_state:
     result = st.session_state.last_query_result
     verified = result.get("verified", False)
+    answer_text = str(result.get("answer") or "").strip()
     # Both generation-layer and routing-layer "no answer" paths produce an
     # unverified result with a fixed message string.  Detect either prefix
     # so the INSUFFICIENT badge covers both cases.
@@ -744,16 +745,12 @@ if "last_query_result" in st.session_state:
         badge_class = "trust-tag unverified"
         badge_label = "§ UNVERIFIED"
 
-    # Convert newlines to <br> so paragraphs render correctly inside the
-    # raw-HTML div.  html.escape() is applied first so any < > & in the
-    # answer don't break the surrounding HTML structure.
-    escaped_answer = html.escape(result["answer"]).replace("\n", "<br>")
-    st.markdown(
-        f'<div class="result-card">'
-        f'<div style="margin-bottom:12px;">'
-        f'<span class="{badge_class}">{badge_label}</span>'
-        f'</div>'
-        f'{escaped_answer}'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
+    if not answer_text:
+        st.error("The answer pipeline completed without returning answer text.")
+    else:
+        st.markdown(
+            f'<span class="{badge_class}">{badge_label}</span>',
+            unsafe_allow_html=True,
+        )
+        st.markdown("### Answer")
+        st.text(answer_text)
