@@ -1,6 +1,10 @@
+import os
 import re
 
 import ollama
+
+
+QUERY_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_QUERY_TIMEOUT_SECONDS", "90"))
 
 
 # Matches a Sources: line even when the model adds markdown decoration
@@ -218,10 +222,10 @@ def generate_answer_structured(question, chunks, model="qwen2.5:7b-instruct", fa
         "required": ["answer_claims", "insufficient"]
     }
 
-    response = ollama.chat(
+    response = ollama.Client(timeout=QUERY_TIMEOUT_SECONDS).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        options={"num_ctx": 8192, "temperature": 0, "num_predict": 800},
+        options={"num_ctx": 8192, "temperature": 0, "num_predict": 300},
         format=schema,
         keep_alive="30m",
     )

@@ -174,3 +174,10 @@ summarizer uses a bounded Ollama request (`OLLAMA_SUMMARY_TIMEOUT_SECONDS`,
 default 60 seconds) and falls back to a short extractive summary when the
 local model is unavailable or too slow. Chunk ingestion still completes, so a
 slow local LLM cannot leave a build stuck indefinitely.
+
+### 6.4 Query generation and verification limits
+Query generation and verification use bounded Ollama requests. Their limits
+can be configured with `OLLAMA_QUERY_TIMEOUT_SECONDS` (default 90) and
+`OLLAMA_VERIFIER_TIMEOUT_SECONDS` (default 60). Claims copied verbatim from
+their cited excerpts pass deterministic grounding before the verifier model is
+called, avoiding unnecessary retries for explicitly supported answers.

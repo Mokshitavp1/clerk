@@ -257,6 +257,29 @@ class TestContentCheck:
         assert result["verified"] is False
         assert "no substantive content" in result["issue"]
 
+    def test_verbatim_claims_pass_without_llm_verifier(self):
+        answer = (
+            "The court held that the defendant breached the contract after "
+            "the parties exchanged written notice of the default. "
+            "[Smith_v_Jones_2019, p. 4]\n\n"
+            "Sources: Smith_v_Jones_2019, p. 4"
+        )
+        claims = [{
+            "claim": "The court held that the defendant breached the contract.",
+            "tag": "C1",
+        }]
+        chunks = [{
+            "text": "The court held that the defendant breached the contract.",
+            "case_name": "Smith_v_Jones_2019",
+            "page_number": 4,
+        }]
+
+        with patch("verifier.ollama.Client") as mock_client:
+            result = verify_answer(answer, chunks, claims=claims)
+
+        mock_client.assert_not_called()
+        assert result == {"verified": True, "issue": None}
+
 
 # ---------------------------------------------------------------------------
 

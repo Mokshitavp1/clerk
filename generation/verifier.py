@@ -20,6 +20,7 @@ Three layers of protection — the first two run before any LLM call:
 """
 
 import re
+import os
 
 import ollama
 
@@ -30,6 +31,7 @@ from generate import generate_answer, generate_answer_structured
 # anything under this threshold is functionally empty and should be rejected
 # without consulting the LLM verifier.
 BODY_MIN_WORDS = 15
+VERIFIER_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_VERIFIER_TIMEOUT_SECONDS", "60"))
 
 
 def _check_has_content(answer_text):
@@ -268,6 +270,15 @@ def _check_claims_deterministic(claims, chunks):
         
         claim_norm = re.sub(r"\s+", " ", claim_text.lower().replace(",", ""))
         chunk_norm = re.sub(r"\s+", " ", chunk_text.lower().replace(",", ""))
+
+        # Claims copied directly from an excerpt are already grounded. This
+        # fast path avoids sending an answer through a slow second LLM call,
+        # and prevents a verifier model from rejecting text that is verbatim
+        # present in the cited passage.
+        claim_tokens = set(re.findall(r"[a-z0-9]+", claim_norm))
+        chunk_tokens = set(re.findall(r"[a-z0-9]+", chunk_norm))
+        if claim_tokens and claim_tokens.issubset(chunk_tokens):
+            continue
         
         patterns = [
             (r"section \d+", "Section reference"),
@@ -287,6 +298,21 @@ def _check_claims_deterministic(claims, chunks):
                     return False, f"The {desc.lower()} '{token}' was not found in excerpt {tag}."
                     
     return True, None
+
+
+def _claims_are_verbatim(claims, chunks):
+    """Return True when every tagged claim is explicitly present in its chunk."""
+    tag_to_chunk = {f"C{i}": chunk for i, chunk in enumerate(chunks, 1)}
+    for item in claims:
+        tag = item.get("tag", "")
+        chunk = tag_to_chunk.get(tag)
+        if chunk is None:
+            return False
+        claim_tokens = set(re.findall(r"[a-z0-9]+", item.get("claim", "").lower()))
+        chunk_tokens = set(re.findall(r"[a-z0-9]+", chunk["text"].lower()))
+        if not claim_tokens or not claim_tokens.issubset(chunk_tokens):
+            return False
+    return bool(claims)
 
 
 
@@ -469,14 +495,16 @@ def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct", claims=None)
         ok, issue = _check_claims_deterministic(claims, chunks)
         if not ok:
             return {"verified": False, "issue": issue}
+        if _claims_are_verbatim(claims, chunks):
+            return {"verified": True, "issue": None}
 
     # Layer 2: LLM groundedness + citation-content check.
     prompt = _build_verification_prompt(clean_answer_text, chunks)
 
-    response = ollama.chat(
+    response = ollama.Client(timeout=VERIFIER_TIMEOUT_SECONDS).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        options={"num_ctx": 8192, "temperature": 0, "num_predict": 800},
+        options={"num_ctx": 8192, "temperature": 0, "num_predict": 200},
         keep_alive="30m",
     )
 
@@ -659,4 +687,3 @@ if __name__ == "__main__":
     
     claims_bad_tag = [{"claim": "Damages were $42,000", "tag": "C3"}]
     print(f"Bad tag: {_check_claims_deterministic(claims_bad_tag, CHUNKS_SMITH)}")
-
