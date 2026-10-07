@@ -167,3 +167,10 @@ The LLM-generated summaries stored in `legal_cases` are sometimes off-topic (e.g
 
 ### 6.2 `fitz` Import Deprecation (Person A's item)
 `parser.py` uses `import fitz`. PyMuPDF ≥ 1.25 prefers `import pymupdf as fitz`. The current version (1.28.2) still works but emits a deprecation warning.
+
+### 6.3 Ollama summary timeout
+Case summaries are an optional optimization for stage-1 retrieval. The
+summarizer uses a bounded Ollama request (`OLLAMA_SUMMARY_TIMEOUT_SECONDS`,
+default 60 seconds) and falls back to a short extractive summary when the
+local model is unavailable or too slow. Chunk ingestion still completes, so a
+slow local LLM cannot leave a build stuck indefinitely.

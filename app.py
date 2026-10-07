@@ -1,6 +1,7 @@
 """Legal Retrieval Assistant query screen."""
 
 import html
+import logging
 import os
 import sys
 
@@ -16,6 +17,8 @@ for _folder in ("retrieval", "generation", "routing", "ingestion"):
 
 from embeddings import get_embedding_model
 get_embedding_model()
+
+logger = logging.getLogger(__name__)
 
 
 st.set_page_config(page_title="Legal Retrieval Assistant", layout="wide")
@@ -89,7 +92,11 @@ def _build_uploaded_cases(uploaded_files, progress_bar=None, status_slot=None):
             pass
 
         # index the single case (may be time-consuming)
-        replace_case(destination)
+        try:
+            replace_case(destination)
+        except Exception:
+            logger.exception("Failed to index uploaded case %s", filename)
+            raise
 
         # update progress/status in the provided UI slots after indexing
         try:
@@ -416,11 +423,14 @@ with st.sidebar:
         else:
             # replace the button with an inline spinner element while building
             build_slot.markdown('<div class="loading-button"><span class="spinner"></span> Building…</div>', unsafe_allow_html=True)
+            progress_bar = st.progress(0)
+            status_slot = st.empty()
             try:
-                _build_uploaded_cases(uploaded_cases)
+                _build_uploaded_cases(uploaded_cases, progress_bar, status_slot)
                 build_slot.success("Knowledge base updated.")
-            except Exception:
-                build_slot.error("Failed to build knowledge base. See logs.")
+            except Exception as exc:
+                logger.exception("Knowledge-base build failed")
+                build_slot.error(f"Failed to build knowledge base: {exc}")
             st.rerun()
 
     # ── Divider + History ──────────────────────────────────────────────

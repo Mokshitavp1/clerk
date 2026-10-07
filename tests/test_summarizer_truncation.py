@@ -20,6 +20,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
+from unittest.mock import patch
 
 from summarizer import build_summary_prompt, summarize_case, WORD_LIMIT
 
@@ -67,6 +68,25 @@ class TestTruncationMechanics:
 
         prompt = build_summary_prompt(long_text)
         assert "HOLDING_MARKER_TOKEN" in prompt
+
+    def test_summary_falls_back_when_ollama_times_out(self):
+        chunks = [{"text": " ".join(f"word{i}" for i in range(200)), "page_number": 1}]
+
+        with patch("summarizer.ollama.Client") as mock_client:
+            mock_client.return_value.chat.side_effect = TimeoutError("timed out")
+            summary = summarize_case(chunks)
+
+        assert summary
+        assert len(summary.split()) <= 150
+        assert "word0" in summary
+        assert "word199" in summary
+
+    def test_empty_text_is_rejected_before_ollama_call(self):
+        with patch("summarizer.ollama.Client") as mock_client:
+            with pytest.raises(ValueError, match="no extractable text"):
+                summarize_case([])
+
+        mock_client.assert_not_called()
 
 
 @pytest.mark.requires_ollama

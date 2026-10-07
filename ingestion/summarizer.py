@@ -2,11 +2,17 @@
 Prompt construction and LLM call for the case-summarization stage.
 """
 
+import logging
+import os
+
 import ollama
 
 WORD_LIMIT = 6000   # total word budget sent to the LLM
 HEAD_WORDS = 3000   # words taken from the beginning of the document
 TAIL_WORDS = 3000   # words taken from the end of the document
+SUMMARY_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_SUMMARY_TIMEOUT_SECONDS", "60"))
+
+logger = logging.getLogger(__name__)
 
 
 def build_summary_prompt(case_text):
@@ -75,16 +81,35 @@ def summarize_case(chunks, model="qwen2.5:7b-instruct"):
     Returns:
         str: the model's summary text.
     """
-    case_text = "\n\n".join(chunk["text"] for chunk in chunks)
+    case_text = "\n\n".join(chunk["text"] for chunk in chunks).strip()
+    if not case_text:
+        raise ValueError("The PDF contains no extractable text to summarize.")
+
     prompt = build_summary_prompt(case_text)
 
-    response = ollama.chat(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        options={"num_ctx": 8192, "temperature": 0},
-    )
+    try:
+        client = ollama.Client(timeout=SUMMARY_TIMEOUT_SECONDS)
+        response = client.chat(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            options={"num_ctx": 8192, "num_predict": 200, "temperature": 0},
+        )
+        summary = response["message"]["content"].strip()
+        if summary:
+            return summary
+        raise ValueError("Ollama returned an empty summary.")
+    except Exception:
+        logger.exception(
+            "Ollama summary failed for %d chunks; using extractive fallback",
+            len(chunks),
+        )
 
-    return response["message"]["content"]
+    # A failed optional summary must not prevent the chunks from being useful
+    # for retrieval. Keep the fallback short and strictly grounded in the PDF.
+    words = case_text.split()
+    if len(words) <= 150:
+        return " ".join(words)
+    return " ".join(words[:75] + ["..."] + words[-74:])
 
 
 if __name__ == "__main__":
