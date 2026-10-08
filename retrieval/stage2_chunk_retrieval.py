@@ -11,6 +11,7 @@ import time
 import sys
 import numpy as np
 from functools import lru_cache
+from copy import deepcopy
 
 from embeddings import get_embedding_model
 from reranker import rerank
@@ -27,6 +28,8 @@ _bm25_count = -1
 # across all get_relevant_chunks calls since the last reset.  This avoids any
 # need for callers to monkeypatch the rerank symbol.
 _rerank_seconds = 0.0
+_results_cache = {}
+_results_cache_count = None
 
 
 @lru_cache(maxsize=1)
@@ -93,7 +96,6 @@ def get_relevant_chunks(query, case_names, top_k=6, rerank_flag=True):
     if not case_names:
         return []
 
-    model = get_embedding_model()
     client = _get_chroma_client()
 
     try:
@@ -101,9 +103,20 @@ def get_relevant_chunks(query, case_names, top_k=6, rerank_flag=True):
     except Exception:
         return []  # no chunks ingested yet
 
-    if collection.count() == 0:
+    collection_count = collection.count()
+    if collection_count == 0:
         return []
 
+    global _results_cache_count
+    if _results_cache_count != collection_count:
+        _results_cache.clear()
+        _results_cache_count = collection_count
+
+    cache_key = (query, tuple(sorted(set(case_names))), top_k, rerank_flag)
+    if cache_key in _results_cache:
+        return deepcopy(_results_cache[cache_key])
+
+    model = get_embedding_model()
     query_embedding_np = np.asarray(_get_query_embedding(query))
     query_embedding = [query_embedding_np.tolist()]
 
@@ -182,7 +195,15 @@ def get_relevant_chunks(query, case_names, top_k=6, rerank_flag=True):
     else:
         relevant_chunks = relevant_chunks[:top_k]
 
+    _results_cache[cache_key] = deepcopy(relevant_chunks)
     return relevant_chunks
+
+
+def clear_retrieval_cache():
+    """Clear cached Stage 2 results after an index mutation."""
+    global _results_cache_count
+    _results_cache.clear()
+    _results_cache_count = None
 
 
 if __name__ == "__main__":

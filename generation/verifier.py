@@ -32,6 +32,17 @@ from generate import generate_answer, generate_answer_structured
 # without consulting the LLM verifier.
 BODY_MIN_WORDS = 15
 VERIFIER_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_VERIFIER_TIMEOUT_SECONDS", "60"))
+_ollama_clients = {}
+
+
+def _get_ollama_client(timeout):
+    """Reuse Ollama connections while keeping timeout-specific clients separate."""
+    cache_key = (timeout, ollama.Client)
+    client = _ollama_clients.get(cache_key)
+    if client is None:
+        client = ollama.Client(timeout=timeout)
+        _ollama_clients[cache_key] = client
+    return client
 
 
 def _check_has_content(answer_text):
@@ -501,7 +512,7 @@ def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct", claims=None)
     # Layer 2: LLM groundedness + citation-content check.
     prompt = _build_verification_prompt(clean_answer_text, chunks)
 
-    response = ollama.Client(timeout=VERIFIER_TIMEOUT_SECONDS).chat(
+    response = _get_ollama_client(VERIFIER_TIMEOUT_SECONDS).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         options={"num_ctx": 8192, "temperature": 0, "num_predict": 200},
@@ -521,6 +532,22 @@ def _retry_note(issue, chunks):
         f"You cited {', '.join(sorted(set(bad)))}, but the only valid tags are "
         f"{valid}. Use only those tags on the Sources line."
     )
+
+
+def _should_retry(issue):
+    """Return False when the verifier established that the excerpts are insufficient."""
+    normalized = (issue or "").lower()
+    insufficient_markers = (
+        "not supported by the excerpt",
+        "not supported by the provided",
+        "not present in the excerpt",
+        "not present in the provided",
+        "cannot be verified from the excerpt",
+        "cannot be supported by the excerpt",
+        "outside the excerpts",
+        "no substantive content",
+    )
+    return not any(marker in normalized for marker in insufficient_markers)
 
 
 def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", progress_callback=None):
@@ -555,6 +582,14 @@ def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", prog
         if progress_callback:
             progress_callback({"verified": True, "retrying": False})
         return {"answer": answer_text, "verified": True}
+
+    if not _should_retry(result["issue"]):
+        if progress_callback:
+            progress_callback({"verified": False, "retrying": False, "issue": result["issue"]})
+        return {
+            "answer": "No verified answer could be found in the uploaded documents for this question.",
+            "verified": False,
+        }
 
     # One retry, steered away from whatever verify_answer flagged.
     # Convert "[unresolved citation: C3]" into a human-readable instruction.

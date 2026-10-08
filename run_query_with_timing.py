@@ -17,6 +17,7 @@ from stage2_chunk_retrieval import get_relevant_chunks
 from generate import generate_answer
 from verifier import verify_answer, generate_verified_answer
 from router import decide_mode
+from stage2_chunk_retrieval import get_rerank_seconds, reset_rerank_timer
 
 def _cap_chunks_per_case(chunks, per_case=2):
     """Mirror of app.py._cap_chunks_per_case — top-2 per case, then re-sorted."""
@@ -41,6 +42,7 @@ question = (
 
 def run_query_with_timing(q: str):
     print("Query: %s...\n" % q[:100])
+    reset_rerank_timer()
 
     # -- Stage 1: case retrieval --
     t0 = time.time()
@@ -59,6 +61,7 @@ def run_query_with_timing(q: str):
     chunks = get_relevant_chunks(q, case_names)
     t2 = time.time()
     print("stage2 (chunk retrieval): %.1fs  =>  %d chunk(s)" % (t2 - t1, len(chunks)))
+    print("reranking (included above): %.1fs" % get_rerank_seconds())
 
     # -- Cap to top-2 per case (mirrors app.py deep branch) --
     chunks = _cap_chunks_per_case(chunks)

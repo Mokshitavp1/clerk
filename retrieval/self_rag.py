@@ -89,10 +89,26 @@ def get_graded_cases(query, initial_top_k=5, min_cases_required=2, progress_call
 
             surviving_cases = []
             dropped_chunks = 0
+            case_names = [case["case_name"] for case in stage1_results]
+            batched_chunks = get_relevant_chunks(query, case_names)
+            chunks_by_case = {}
+            for chunk in batched_chunks:
+                chunks_by_case.setdefault(chunk["case_name"], []).append(chunk)
+
+            # A global top-k response can omit a lower-ranked case. Retrieve
+            # only those missing cases individually so batching never reduces
+            # evidence coverage.
+            missing_case_names = [
+                case_name for case_name in case_names if case_name not in chunks_by_case
+            ]
+            for case_name in missing_case_names:
+                for chunk in get_relevant_chunks(query, [case_name]):
+                    chunks_by_case.setdefault(case_name, []).append(chunk)
+
             for case in stage1_results:
                 case_name = case["case_name"]
 
-                chunks = get_relevant_chunks(query, [case_name])
+                chunks = chunks_by_case.get(case_name, [])
                 graded_chunks, dropped_count_per_case = grade_chunks(chunks)
                 dropped_chunks += sum(dropped_count_per_case.values())
 

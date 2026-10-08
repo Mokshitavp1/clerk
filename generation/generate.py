@@ -5,6 +5,17 @@ import ollama
 
 
 QUERY_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_QUERY_TIMEOUT_SECONDS", "90"))
+_ollama_clients = {}
+
+
+def _get_ollama_client(timeout):
+    """Reuse Ollama connections while keeping timeout-specific clients separate."""
+    cache_key = (timeout, ollama.Client)
+    client = _ollama_clients.get(cache_key)
+    if client is None:
+        client = ollama.Client(timeout=timeout)
+        _ollama_clients[cache_key] = client
+    return client
 
 
 # Matches a Sources: line even when the model adds markdown decoration
@@ -233,7 +244,7 @@ def generate_answer_structured(question, chunks, model="qwen2.5:7b-instruct", fa
         "required": ["answer_claims", "insufficient"]
     }
 
-    response = ollama.Client(timeout=QUERY_TIMEOUT_SECONDS).chat(
+    response = _get_ollama_client(QUERY_TIMEOUT_SECONDS).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         options={"num_ctx": 8192, "temperature": 0, "num_predict": 300},

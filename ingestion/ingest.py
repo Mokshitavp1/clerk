@@ -97,6 +97,13 @@ def ingest_new_case(filepath):
         metadatas=[{"case_name": case_name}],
     )
 
+    try:
+        from stage1_case_retrieval import clear_retrieval_cache as clear_stage1_cache
+        from stage2_chunk_retrieval import clear_retrieval_cache as clear_stage2_cache
+        clear_stage1_cache()
+        clear_stage2_cache()
+    except ImportError:
+        pass
     return case_name
 
 

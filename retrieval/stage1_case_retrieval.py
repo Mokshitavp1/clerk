@@ -7,11 +7,15 @@ Returns the contract 3.1 shape from CONTRACTS.md:
 
 import chromadb
 from functools import lru_cache
+from copy import deepcopy
+import re
 
 from embeddings import get_embedding_model
 
 CHROMA_PATH = "data/chroma_db"
 CASES_COLLECTION = "legal_cases"
+_results_cache = {}
+_results_cache_count = None
 
 
 @lru_cache(maxsize=1)
@@ -35,7 +39,6 @@ def get_relevant_cases(query, top_k=5):
         sorted by relevance_score descending. Empty list if the
         collection doesn't exist yet or has no records.
     """
-    model = get_embedding_model()
     client = _get_chroma_client()
 
     try:
@@ -43,32 +46,86 @@ def get_relevant_cases(query, top_k=5):
     except Exception:
         return []  # no cases ingested yet
 
-    if collection.count() == 0:
+    collection_count = collection.count()
+    if collection_count == 0:
         return []
 
+    global _results_cache_count
+    if _results_cache_count != collection_count:
+        _results_cache.clear()
+        _results_cache_count = collection_count
+
+    cache_key = (query, top_k)
+    if cache_key in _results_cache:
+        return deepcopy(_results_cache[cache_key])
+
+    model = get_embedding_model()
     query_embedding = model.encode([query], normalize_embeddings=True).tolist()
 
     results = collection.query(
         query_embeddings=query_embedding,
-        n_results=min(top_k, collection.count()),
+        n_results=min(top_k, collection_count),
     )
 
     case_names = results["metadatas"][0]
     distances = results["distances"][0]
 
-    relevant_cases = []
+    relevant_cases_by_name = {}
     for metadata, distance in zip(case_names, distances):
         # This is cosine similarity because the collections use hnsw:space=cosine.
         relevance_score = max(0.0, min(1.0, 1.0 - distance))
-
-        relevant_cases.append({
+        relevant_cases_by_name[metadata["case_name"]] = {
             "case_name": metadata["case_name"],
             "relevance_score": relevance_score,
-        })
+        }
 
+    # Dense summary embeddings can miss a case explicitly named by the user.
+    # Add exact filename-token matches before truncating to top_k; this does
+    # not weaken evidence checks and only improves authority selection.
+    all_metadata = collection.get().get("metadatas", [])
+    for metadata in all_metadata:
+        case_name = metadata["case_name"]
+        lexical_score = _case_name_match_score(query, case_name)
+        if lexical_score >= 0.5:
+            current = relevant_cases_by_name.get(case_name)
+            if current is None or lexical_score > current["relevance_score"]:
+                relevant_cases_by_name[case_name] = {
+                    "case_name": case_name,
+                    "relevance_score": lexical_score,
+                }
+
+    relevant_cases = list(relevant_cases_by_name.values())
     relevant_cases.sort(key=lambda c: c["relevance_score"], reverse=True)
+    relevant_cases = relevant_cases[:top_k]
 
+    _results_cache[cache_key] = deepcopy(relevant_cases)
     return relevant_cases
+
+
+def clear_retrieval_cache():
+    """Clear cached Stage 1 results after an index mutation."""
+    global _results_cache_count
+    _results_cache.clear()
+    _results_cache_count = None
+
+
+def _case_name_match_score(query, case_name):
+    """Score meaningful query-token overlap with a stored case filename."""
+    stop_words = {
+        "what", "when", "where", "which", "does", "does", "under", "section",
+        "contract", "case", "regarding", "according", "the", "and", "for",
+    }
+    query_tokens = {
+        token for token in re.findall(r"[a-z0-9]+", query.lower())
+        if len(token) > 2 and token not in stop_words
+    }
+    case_tokens = {
+        token for token in re.findall(r"[a-z0-9]+", case_name.lower().replace("_", " "))
+        if len(token) > 2 and token not in stop_words
+    }
+    if not query_tokens or not case_tokens:
+        return 0.0
+    return len(query_tokens & case_tokens) / len(case_tokens)
 
 
 def is_ambiguous(results, threshold=0.1):
