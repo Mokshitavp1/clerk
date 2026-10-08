@@ -14,7 +14,7 @@ Or as part of the full fast suite:
 
 import pytest
 
-from generate import _assign_tags, _expand_tagged_sources
+from generate import _assign_tags, _expand_tagged_sources, build_answer_prompt
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +64,27 @@ class TestAssignTags:
         tag_map, _ = _assign_tags(chunks)
         assert tag_map["C1"] == {"case_name": "A", "page_number": 2}
         assert "relevance_score" not in tag_map["C1"]
+
+
+class TestAnswerPrompt:
+
+    def test_prompt_requires_rule_and_analogy_analysis(self):
+        chunks = [{
+            "text": "Section 74 permits reasonable compensation where loss is not proved.",
+            "case_name": "Example_Case",
+            "page_number": 3,
+        }]
+
+        prompt, _ = build_answer_prompt(
+            "Is forfeiture valid without proof of government loss, and is there a similar case?",
+            chunks,
+        )
+
+        assert "Answer the user's actual question first" in prompt
+        assert "similar or analogous case" in prompt
+        assert "proof of loss" in prompt
+        assert "full" in prompt and "reasonable compensation" in prompt
+        assert "Separate a court's holding or stated legal rule" in prompt
 
 
 # ---------------------------------------------------------------------------

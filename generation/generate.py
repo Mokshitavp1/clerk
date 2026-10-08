@@ -188,7 +188,18 @@ You must return a strictly valid JSON object.
 1. "insufficient" must be true if the excerpts cannot answer the question.
 2. If sufficient, break your answer down into individual claims in "answer_claims". 
 3. Every single claim MUST have a valid "tag" from this list: {valid_tag_list}.
-4. Return ONLY the JSON object, nothing else.
+4. Answer the user's actual question first, rather than listing case summaries.
+5. For a request for a similar or analogous case, explain why each cited excerpt
+   is relevant and state any material limitation or factual distinction.
+6. Separate a court's holding or stated legal rule from facts, arguments, dicta,
+   and a quotation of another case. Do not present a factual example as a rule.
+7. When the question concerns forfeiture, deposits, penalties, or damages, make
+   the answer explicit about (a) whether a breach/default occurred, (b) whether
+   the excerpt addresses proof of loss, and (c) whether it supports full
+   forfeiture or only reasonable compensation. Do not fill in any missing point.
+8. If the excerpts support only a qualified answer, say so in a claim and cite
+   the excerpt supporting the qualification.
+9. Return ONLY the JSON object, nothing else.
 """
 
     return prompt, tag_map
