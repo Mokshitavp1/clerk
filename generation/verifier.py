@@ -534,22 +534,6 @@ def _retry_note(issue, chunks):
     )
 
 
-def _should_retry(issue):
-    """Return False when the verifier established that the excerpts are insufficient."""
-    normalized = (issue or "").lower()
-    insufficient_markers = (
-        "not supported by the excerpt",
-        "not supported by the provided",
-        "not present in the excerpt",
-        "not present in the provided",
-        "cannot be verified from the excerpt",
-        "cannot be supported by the excerpt",
-        "outside the excerpts",
-        "no substantive content",
-    )
-    return not any(marker in normalized for marker in insufficient_markers)
-
-
 def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", progress_callback=None):
     """
     Generate an answer and verify it; retry generation ONCE (steered by
@@ -582,14 +566,6 @@ def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", prog
         if progress_callback:
             progress_callback({"verified": True, "retrying": False})
         return {"answer": answer_text, "verified": True}
-
-    if not _should_retry(result["issue"]):
-        if progress_callback:
-            progress_callback({"verified": False, "retrying": False, "issue": result["issue"]})
-        return {
-            "answer": "No verified answer could be found in the uploaded documents for this question.",
-            "verified": False,
-        }
 
     # One retry, steered away from whatever verify_answer flagged.
     # Convert "[unresolved citation: C3]" into a human-readable instruction.
