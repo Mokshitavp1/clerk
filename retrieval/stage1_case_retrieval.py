@@ -6,11 +6,18 @@ Returns the contract 3.1 shape from CONTRACTS.md:
 """
 
 import chromadb
+from functools import lru_cache
 
 from embeddings import get_embedding_model
 
 CHROMA_PATH = "data/chroma_db"
 CASES_COLLECTION = "legal_cases"
+
+
+@lru_cache(maxsize=1)
+def _get_chroma_client():
+    """Reuse the persistent client across queries in this process."""
+    return chromadb.PersistentClient(path=CHROMA_PATH)
 
 
 def get_relevant_cases(query, top_k=5):
@@ -29,7 +36,7 @@ def get_relevant_cases(query, top_k=5):
         collection doesn't exist yet or has no records.
     """
     model = get_embedding_model()
-    client = chromadb.PersistentClient(path=CHROMA_PATH)
+    client = _get_chroma_client()
 
     try:
         collection = client.get_collection(name=CASES_COLLECTION)

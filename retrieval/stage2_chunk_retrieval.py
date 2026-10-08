@@ -10,6 +10,7 @@ import chromadb
 import time
 import sys
 import numpy as np
+from functools import lru_cache
 
 from embeddings import get_embedding_model
 from reranker import rerank
@@ -26,6 +27,19 @@ _bm25_count = -1
 # across all get_relevant_chunks calls since the last reset.  This avoids any
 # need for callers to monkeypatch the rerank symbol.
 _rerank_seconds = 0.0
+
+
+@lru_cache(maxsize=1)
+def _get_chroma_client():
+    """Reuse the persistent client across queries in this process."""
+    return chromadb.PersistentClient(path=CHROMA_PATH)
+
+
+@lru_cache(maxsize=128)
+def _get_query_embedding(query):
+    """Reuse an embedding when Deep mode searches the same query per case."""
+    model = get_embedding_model()
+    return tuple(model.encode([query], normalize_embeddings=True)[0].tolist())
 
 
 def reset_rerank_timer():
@@ -80,7 +94,7 @@ def get_relevant_chunks(query, case_names, top_k=6, rerank_flag=True):
         return []
 
     model = get_embedding_model()
-    client = chromadb.PersistentClient(path=CHROMA_PATH)
+    client = _get_chroma_client()
 
     try:
         collection = client.get_collection(name=CHUNKS_COLLECTION)
@@ -90,7 +104,7 @@ def get_relevant_chunks(query, case_names, top_k=6, rerank_flag=True):
     if collection.count() == 0:
         return []
 
-    query_embedding_np = model.encode([query], normalize_embeddings=True)[0]
+    query_embedding_np = np.asarray(_get_query_embedding(query))
     query_embedding = [query_embedding_np.tolist()]
 
     # Chroma's where clause needs $in for a list of allowed values, even
