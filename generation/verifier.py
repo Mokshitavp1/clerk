@@ -25,7 +25,11 @@ import time
 
 import ollama
 
-from generate import generate_answer, generate_answer_structured
+from generate import (
+    RETRY_QUERY_TIMEOUT_SECONDS,
+    generate_answer,
+    generate_answer_structured,
+)
 
 # Minimum word count for the answer body (everything before the Sources: line).
 # 15 words is just above the shortest plausible single-sentence legal answer;
@@ -33,6 +37,9 @@ from generate import generate_answer, generate_answer_structured
 # without consulting the LLM verifier.
 BODY_MIN_WORDS = 15
 VERIFIER_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_VERIFIER_TIMEOUT_SECONDS", "60"))
+RETRY_VERIFIER_TIMEOUT_SECONDS = float(
+    os.getenv("OLLAMA_RETRY_VERIFIER_TIMEOUT_SECONDS", "30")
+)
 VERIFIED_ANSWER_BUDGET_SECONDS = float(
     os.getenv("OLLAMA_VERIFIED_ANSWER_BUDGET_SECONDS", "240")
 )
@@ -445,7 +452,13 @@ def _parse_verification_response(response_text):
     return {"verified": verified, "issue": issue}
 
 
-def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct", claims=None):
+def verify_answer(
+    answer_text,
+    chunks,
+    model="qwen2.5:7b-instruct",
+    claims=None,
+    timeout_seconds=None,
+):
     """
     Check whether each citation in answer_text is actually supported by
     the matching chunk's text, and whether the answer's claims are
@@ -516,7 +529,9 @@ def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct", claims=None)
     # Layer 2: LLM groundedness + citation-content check.
     prompt = _build_verification_prompt(clean_answer_text, chunks)
 
-    response = _get_ollama_client(VERIFIER_TIMEOUT_SECONDS).chat(
+    response = _get_ollama_client(
+        VERIFIER_TIMEOUT_SECONDS if timeout_seconds is None else timeout_seconds
+    ).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         options={"num_ctx": 4096, "temperature": 0, "num_predict": 120},
@@ -594,9 +609,19 @@ def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", prog
     if progress_callback:
         progress_callback({"verified": False, "retrying": True, "issue": retry_note})
     retry_answer_text, retry_claims = generate_answer_structured(
-        question, chunks, model=model, failure_note=retry_note
+        question,
+        chunks,
+        model=model,
+        failure_note=retry_note,
+        timeout_seconds=RETRY_QUERY_TIMEOUT_SECONDS,
     )
-    retry_result = verify_answer(retry_answer_text, chunks, model=model, claims=retry_claims)
+    retry_result = verify_answer(
+        retry_answer_text,
+        chunks,
+        model=model,
+        claims=retry_claims,
+        timeout_seconds=RETRY_VERIFIER_TIMEOUT_SECONDS,
+    )
 
     if retry_result["verified"]:
         if progress_callback:

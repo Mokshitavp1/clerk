@@ -7,6 +7,9 @@ import ollama
 # Keep a single local-model call bounded so a stalled Ollama request does not
 # leave the Streamlit script in its loading state indefinitely.
 QUERY_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_QUERY_TIMEOUT_SECONDS", "120"))
+RETRY_QUERY_TIMEOUT_SECONDS = float(
+    os.getenv("OLLAMA_RETRY_QUERY_TIMEOUT_SECONDS", "45")
+)
 _ollama_clients = {}
 
 
@@ -218,7 +221,13 @@ You must return a strictly valid JSON object.
     return prompt, tag_map
 
 
-def generate_answer_structured(question, chunks, model="qwen2.5:7b-instruct", failure_note=None):
+def generate_answer_structured(
+    question,
+    chunks,
+    model="qwen2.5:7b-instruct",
+    failure_note=None,
+    timeout_seconds=None,
+):
     """
     Build the tag-based answer prompt, call a local Ollama model using JSON schema,
     render into the expected text format, and return both the expanded text and claims.
@@ -246,7 +255,9 @@ def generate_answer_structured(question, chunks, model="qwen2.5:7b-instruct", fa
         "required": ["answer_claims", "insufficient"]
     }
 
-    response = _get_ollama_client(QUERY_TIMEOUT_SECONDS).chat(
+    response = _get_ollama_client(
+        QUERY_TIMEOUT_SECONDS if timeout_seconds is None else timeout_seconds
+    ).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         options={"num_ctx": 4096, "temperature": 0, "num_predict": 180},

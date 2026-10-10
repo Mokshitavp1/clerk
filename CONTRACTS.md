@@ -185,6 +185,10 @@ budget, the retry is skipped and the UI receives the normal verified-answer
 fallback instead of waiting indefinitely. Claims copied verbatim from their
 cited excerpts pass deterministic grounding before the verifier model is
 called, avoiding unnecessary retries for explicitly supported answers.
+If a retry is needed, it uses shorter independent limits:
+`OLLAMA_RETRY_QUERY_TIMEOUT_SECONDS` defaults to 45 seconds and
+`OLLAMA_RETRY_VERIFIER_TIMEOUT_SECONDS` defaults to 30 seconds, so a rejected
+first answer cannot block the UI for another full generation cycle.
 
 Cross-encoder reranking is disabled by default for interactive retrieval
 because the local `BAAI/bge-reranker-v2-m3` model can take several minutes on
