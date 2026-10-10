@@ -4,7 +4,9 @@ import re
 import ollama
 
 
-QUERY_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_QUERY_TIMEOUT_SECONDS", "90"))
+# Keep a single local-model call bounded so a stalled Ollama request does not
+# leave the Streamlit script in its loading state indefinitely.
+QUERY_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_QUERY_TIMEOUT_SECONDS", "120"))
 _ollama_clients = {}
 
 
@@ -247,7 +249,7 @@ def generate_answer_structured(question, chunks, model="qwen2.5:7b-instruct", fa
     response = _get_ollama_client(QUERY_TIMEOUT_SECONDS).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        options={"num_ctx": 8192, "temperature": 0, "num_predict": 300},
+        options={"num_ctx": 4096, "temperature": 0, "num_predict": 180},
         format=schema,
         keep_alive="30m",
     )

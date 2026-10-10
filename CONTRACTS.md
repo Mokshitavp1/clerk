@@ -177,7 +177,17 @@ slow local LLM cannot leave a build stuck indefinitely.
 
 ### 6.4 Query generation and verification limits
 Query generation and verification use bounded Ollama requests. Their limits
-can be configured with `OLLAMA_QUERY_TIMEOUT_SECONDS` (default 90) and
-`OLLAMA_VERIFIER_TIMEOUT_SECONDS` (default 60). Claims copied verbatim from
-their cited excerpts pass deterministic grounding before the verifier model is
+can be configured with `OLLAMA_QUERY_TIMEOUT_SECONDS` (default 120) and
+`OLLAMA_VERIFIER_TIMEOUT_SECONDS` (default 60). A generation/verification
+attempt also has a 240-second budget, configurable with
+`OLLAMA_VERIFIED_ANSWER_BUDGET_SECONDS`; when the first attempt reaches that
+budget, the retry is skipped and the UI receives the normal verified-answer
+fallback instead of waiting indefinitely. Claims copied verbatim from their
+cited excerpts pass deterministic grounding before the verifier model is
 called, avoiding unnecessary retries for explicitly supported answers.
+
+Cross-encoder reranking is disabled by default for interactive retrieval
+because the local `BAAI/bge-reranker-v2-m3` model can take several minutes on
+CPU. Dense and BM25 retrieval remain enabled. Set `CLERK_ENABLE_RERANK=1`
+before starting Streamlit when reranking quality is preferred over response
+time, or pass `rerank_flag=True` to `get_relevant_chunks` for a targeted run.

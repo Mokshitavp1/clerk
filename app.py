@@ -716,10 +716,21 @@ if submitted and question.strip():
     run_request = {"query": question.strip(), "cases": shortlist}
 
 if run_request:
-    with st.spinner("Retrieving answers…"):
-        st.session_state.last_query_result = _run_query(
-            run_request["query"], progress_slot, selected_mode, run_request["cases"]
-        )
+    try:
+        with st.spinner("Retrieving answers…"):
+            st.session_state.last_query_result = _run_query(
+                run_request["query"], progress_slot, selected_mode, run_request["cases"]
+            )
+    except Exception as exc:
+        logger.exception("Query pipeline failed")
+        progress_slot.empty()
+        st.session_state.last_query_result = {
+            "answer": (
+                "The answer pipeline could not complete. "
+                f"Check that Ollama is running and try again. ({exc})"
+            ),
+            "verified": False,
+        }
 
 if submitted and not question.strip():
     st.warning("Enter a legal question before retrieving cases.")

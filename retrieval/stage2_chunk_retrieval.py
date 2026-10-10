@@ -9,6 +9,7 @@ Returns the contract 3.2 shape from CONTRACTS.md:
 import chromadb
 import time
 import sys
+import os
 import numpy as np
 from functools import lru_cache
 from copy import deepcopy
@@ -30,6 +31,9 @@ _bm25_count = -1
 _rerank_seconds = 0.0
 _results_cache = {}
 _results_cache_count = None
+RERANK_ENABLED = os.getenv("CLERK_ENABLE_RERANK", "0").lower() in {
+    "1", "true", "yes", "on"
+}
 
 
 @lru_cache(maxsize=1)
@@ -76,7 +80,7 @@ def get_bm25_index(collection):
     return _bm25_index, _bm25_corpus
 
 
-def get_relevant_chunks(query, case_names, top_k=6, rerank_flag=True):
+def get_relevant_chunks(query, case_names, top_k=6, rerank_flag=None):
     """
     Embed a query and search the "legal_chunks" collection for the top_k
     most similar chunks, restricted to chunks whose case_name metadata is
@@ -95,6 +99,9 @@ def get_relevant_chunks(query, case_names, top_k=6, rerank_flag=True):
     """
     if not case_names:
         return []
+
+    if rerank_flag is None:
+        rerank_flag = RERANK_ENABLED
 
     client = _get_chroma_client()
 

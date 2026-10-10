@@ -21,6 +21,7 @@ Three layers of protection — the first two run before any LLM call:
 
 import re
 import os
+import time
 
 import ollama
 
@@ -32,6 +33,9 @@ from generate import generate_answer, generate_answer_structured
 # without consulting the LLM verifier.
 BODY_MIN_WORDS = 15
 VERIFIER_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_VERIFIER_TIMEOUT_SECONDS", "60"))
+VERIFIED_ANSWER_BUDGET_SECONDS = float(
+    os.getenv("OLLAMA_VERIFIED_ANSWER_BUDGET_SECONDS", "240")
+)
 _ollama_clients = {}
 
 
@@ -515,7 +519,7 @@ def verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct", claims=None)
     response = _get_ollama_client(VERIFIER_TIMEOUT_SECONDS).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        options={"num_ctx": 8192, "temperature": 0, "num_predict": 200},
+        options={"num_ctx": 4096, "temperature": 0, "num_predict": 120},
         keep_alive="30m",
     )
 
@@ -559,6 +563,7 @@ def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", prog
         answer" message and verified is False — this function never
         returns an answer that failed verification.
     """
+    started_at = time.monotonic()
     answer_text, claims = generate_answer_structured(question, chunks, model=model)
     result = verify_answer(answer_text, chunks, model=model, claims=claims)
 
@@ -570,6 +575,22 @@ def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", prog
     # One retry, steered away from whatever verify_answer flagged.
     # Convert "[unresolved citation: C3]" into a human-readable instruction.
     retry_note = _retry_note(result["issue"], chunks)
+    elapsed = time.monotonic() - started_at
+    if elapsed >= VERIFIED_ANSWER_BUDGET_SECONDS:
+        if progress_callback:
+            progress_callback({
+                "verified": False,
+                "retrying": False,
+                "issue": (
+                    "The local answer pipeline reached its time limit after "
+                    f"{elapsed:.0f} seconds; the retry was skipped."
+                ),
+            })
+        return {
+            "answer": "No verified answer could be found in the uploaded documents for this question.",
+            "verified": False,
+        }
+
     if progress_callback:
         progress_callback({"verified": False, "retrying": True, "issue": retry_note})
     retry_answer_text, retry_claims = generate_answer_structured(
