@@ -6,7 +6,7 @@ import ollama
 
 # Keep a single local-model call bounded so a stalled Ollama request does not
 # leave the Streamlit script in its loading state indefinitely.
-QUERY_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_QUERY_TIMEOUT_SECONDS", "120"))
+QUERY_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_QUERY_TIMEOUT_SECONDS", "240"))
 RETRY_QUERY_TIMEOUT_SECONDS = float(
     os.getenv("OLLAMA_RETRY_QUERY_TIMEOUT_SECONDS", "45")
 )
@@ -216,6 +216,13 @@ You must return a strictly valid JSON object.
 8. If the excerpts support only a qualified answer, say so in a claim and cite
    the excerpt supporting the qualification.
 9. Return ONLY the JSON object, nothing else.
+10. CRITICAL — cross-case attribution rule: if your claim states something a specific
+   named case held or decided (e.g. "In Smith v. Jones, the court held..."), the tag
+   for that claim MUST be from an excerpt whose label matches that case. You may NOT
+   attribute a holding to Case A by citing an excerpt from Case B, even if Case B's
+   excerpt quotes or discusses Case A. If no excerpt from the named case is available,
+   do not assert what that case held — instead, set insufficient to true or restrict
+   your claim to what the available excerpts explicitly say about it.
 """
 
     return prompt, tag_map
@@ -260,7 +267,7 @@ def generate_answer_structured(
     ).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        options={"num_ctx": 4096, "temperature": 0, "num_predict": 180},
+        options={"num_ctx": 2048, "temperature": 0, "num_predict": 180},
         format=schema,
         keep_alive="30m",
     )

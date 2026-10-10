@@ -57,15 +57,18 @@ def run_query_with_timing(q: str):
     case_names = [c["case_name"] for c in shortlist]
     print("\nResolved mode: %s  |  using %d case(s)\n" % (mode, len(case_names)))
 
-    # -- Stage 2: chunk retrieval --
-    chunks = get_relevant_chunks(q, case_names)
+    # Fast mode: restrict chunk retrieval to the top-ranked case only,
+    # mirroring app.py fast-path (shortlisted_cases[0]).
+    top_case_names = [shortlist[0]["case_name"]] if shortlist else []
+    chunks = get_relevant_chunks(q, top_case_names)
     t2 = time.time()
     print("stage2 (chunk retrieval): %.1fs  =>  %d chunk(s)" % (t2 - t1, len(chunks)))
     print("reranking (included above): %.1fs" % get_rerank_seconds())
 
-    # -- Cap to top-2 per case (mirrors app.py deep branch) --
+    # -- Cap to top-2 per case (mirrors app.py fast-path _cap_chunks) --
     chunks = _cap_chunks_per_case(chunks)
     print("after cap              :           %d chunk(s) kept" % len(chunks))
+    print("using case             : %s" % (top_case_names[0] if top_case_names else "n/a"))
 
     # -- Stage 3: generate answer --
     answer_text = generate_answer(q, chunks, model="qwen2.5:7b-instruct")
@@ -73,7 +76,7 @@ def run_query_with_timing(q: str):
     print("generate (LLM answer)  : %.1fs  =>  %d chars" % (t3 - t2, len(answer_text)))
 
     # -- Stage 4: verify answer --
-    result = verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct")
+    result = verify_answer(answer_text, chunks, model="qwen2.5:7b-instruct", question=q)
     t4 = time.time()
     print("verify                 : %.1fs  =>  verified=%s" % (t4 - t3, result['verified']))
     if not result["verified"]:

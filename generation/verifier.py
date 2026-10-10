@@ -36,7 +36,7 @@ from generate import (
 # anything under this threshold is functionally empty and should be rejected
 # without consulting the LLM verifier.
 BODY_MIN_WORDS = 15
-VERIFIER_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_VERIFIER_TIMEOUT_SECONDS", "60"))
+VERIFIER_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_VERIFIER_TIMEOUT_SECONDS", "120"))
 RETRY_VERIFIER_TIMEOUT_SECONDS = float(
     os.getenv("OLLAMA_RETRY_VERIFIER_TIMEOUT_SECONDS", "30")
 )
@@ -231,31 +231,46 @@ def _check_citations_deterministic(answer_text, chunks):
     return {"verified": True, "issue": None}
 
 
-def _check_hallucinated_cases(answer_text, chunks):
+def _check_hallucinated_cases(answer_text, chunks, question=None):
     """
     Deterministic check to scan the answer body for any case-name-like
     mentions that aren't in the provided chunks. Fast failure.
+
+    Args:
+        answer_text: the generated answer text.
+        chunks: list of chunk dicts used for generation.
+        question: the original user question string.  Any case-name-like
+            fragment that is a substring of the question is skipped —
+            the model is simply echoing the user's own phrasing, not
+            inventing a citation.
     """
     import re
     # Match strings like "Kunwar Chiranjit Singh v. Hat Swarup" or "State_v_Doe"
     pattern = re.compile(r"\b[A-Z][A-Za-z.]+(?:\s+v\.?\s+|_v_)[A-Z][A-Za-z.]+\b")
-    
+
     # Strip the sources line if present
     body = answer_text
     match = re.search(r"(?im)^\s*Sources:\s*(.*)$", answer_text)
     if match:
         body = answer_text[:match.start()]
-    
+
     mentions = pattern.findall(body)
-    
+
     valid_names = {_normalize_case_name_for_comparison(c['case_name']) for c in chunks}
-    
+    norm_question = _normalize_case_name_for_comparison(question) if question else ""
+
     bad_mentions = []
     for mention in mentions:
         norm_mention = _normalize_case_name_for_comparison(mention)
-        if not any(norm_mention in valid for valid in valid_names) and not any(valid in norm_mention for valid in valid_names):
-            bad_mentions.append(mention)
-            
+        # Skip if matched by a chunk's case name.
+        if any(norm_mention in valid for valid in valid_names) or any(valid in norm_mention for valid in valid_names):
+            continue
+        # Skip if this fragment appears in the user's own question — the
+        # model is echoing the user's phrasing, not inventing a citation.
+        if norm_question and norm_mention in norm_question:
+            continue
+        bad_mentions.append(mention)
+
     if bad_mentions:
         return {
             "verified": False,
@@ -458,6 +473,7 @@ def verify_answer(
     model="qwen2.5:7b-instruct",
     claims=None,
     timeout_seconds=None,
+    question=None,
 ):
     """
     Check whether each citation in answer_text is actually supported by
@@ -514,7 +530,7 @@ def verify_answer(
         return content_result
         
     # Layer 1c: deterministic hallucinated cases check (no LLM, hard fail).
-    hallucination_result = _check_hallucinated_cases(clean_answer_text, chunks)
+    hallucination_result = _check_hallucinated_cases(clean_answer_text, chunks, question=question)
     if not hallucination_result["verified"]:
         return hallucination_result
         
@@ -534,7 +550,7 @@ def verify_answer(
     ).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        options={"num_ctx": 4096, "temperature": 0, "num_predict": 120},
+        options={"num_ctx": 2048, "temperature": 0, "num_predict": 120},
         keep_alive="30m",
     )
 
@@ -580,7 +596,7 @@ def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", prog
     """
     started_at = time.monotonic()
     answer_text, claims = generate_answer_structured(question, chunks, model=model)
-    result = verify_answer(answer_text, chunks, model=model, claims=claims)
+    result = verify_answer(answer_text, chunks, model=model, claims=claims, question=question)
 
     if result["verified"]:
         if progress_callback:
@@ -621,6 +637,7 @@ def generate_verified_answer(question, chunks, model="qwen2.5:7b-instruct", prog
         model=model,
         claims=retry_claims,
         timeout_seconds=RETRY_VERIFIER_TIMEOUT_SECONDS,
+        question=question,
     )
 
     if retry_result["verified"]:
