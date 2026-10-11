@@ -267,7 +267,7 @@ def generate_answer_structured(
     ).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        options={"num_ctx": 2048, "temperature": 0, "num_predict": 180},
+        options={"num_ctx": 4096, "temperature": 0, "num_predict": 400, "seed": 0},
         format=schema,
         keep_alive="30m",
     )
@@ -277,6 +277,7 @@ def generate_answer_structured(
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
+        print(f"[generate] JSON parse failed, raw output was truncated/invalid: {raw[-200:]!r}")
         data = {"answer_claims": [], "insufficient": True}
         
     claims = data.get("answer_claims", [])

@@ -550,7 +550,7 @@ def verify_answer(
     ).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        options={"num_ctx": 2048, "temperature": 0, "num_predict": 120},
+        options={"num_ctx": 4096, "temperature": 0, "num_predict": 120},
         keep_alive="30m",
     )
 
