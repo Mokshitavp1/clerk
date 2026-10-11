@@ -168,7 +168,7 @@ def build_answer_prompt(question, chunks, failure_note=None):
     valid_tags = [tag for tag, _ in tagged_chunks]
     valid_tag_list = ", ".join(valid_tags)
 
-    _CHUNK_CHAR_LIMIT = 800
+    _CHUNK_CHAR_LIMIT = 1200
     excerpt_blocks = []
     for tag, chunk in tagged_chunks:
         text = chunk["text"]
@@ -267,24 +267,17 @@ def generate_answer_structured(
     ).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        options={"num_ctx": 4096, "temperature": 0, "num_predict": 512},
+        options={"num_ctx": 2048, "temperature": 0, "num_predict": 180},
         format=schema,
         keep_alive="30m",
     )
-
-    if response.get("done_reason") == "length":
-        print("[generate] WARNING: hit num_predict limit; JSON is likely truncated")
 
     raw = response["message"]["content"]
     
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
-        print(f"[generate] JSON parse failed, tail of output: {raw[-200:]!r}")
         data = {"answer_claims": [], "insufficient": True}
-    else:
-        if data.get("insufficient") is True:
-            print("[generate] model returned insufficient=True (valid JSON)")
         
     claims = data.get("answer_claims", [])
     insufficient = data.get("insufficient", False)

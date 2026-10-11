@@ -372,7 +372,7 @@ def _build_verification_prompt(answer_text, chunks):
     Returns:
         str: a complete verification prompt.
     """
-    _CHUNK_CHAR_LIMIT = 800
+    _CHUNK_CHAR_LIMIT = 1200
     excerpt_blocks = []
     for chunk in chunks:
         label = f"[{chunk['case_name']}, p. {chunk['page_number']}]"
@@ -522,28 +522,23 @@ def verify_answer(
     # Layer 1: deterministic citation pre-check (no LLM, hard fail).
     deterministic_result = _check_citations_deterministic(clean_answer_text, chunks)
     if not deterministic_result["verified"]:
-        print(f"[verifier] rejected at layer 1: {deterministic_result['issue']}")
         return deterministic_result
 
     # Layer 1b: deterministic content pre-check (no LLM, hard fail).
     content_result = _check_has_content(clean_answer_text)
     if not content_result["verified"]:
-        print(f"[verifier] rejected at layer 1b: {content_result['issue']}")
         return content_result
         
     # Layer 1c: deterministic hallucinated cases check (no LLM, hard fail).
     hallucination_result = _check_hallucinated_cases(clean_answer_text, chunks, question=question)
     if not hallucination_result["verified"]:
-        print(f"[verifier] rejected at layer 1c: {hallucination_result['issue']}")
         return hallucination_result
         
     # Layer 1d: deterministic claim-level check (no LLM, hard fail).
     if claims:
         ok, issue = _check_claims_deterministic(claims, chunks)
         if not ok:
-            result = {"verified": False, "issue": issue}
-            print(f"[verifier] rejected at layer 1d: {issue}")
-            return result
+            return {"verified": False, "issue": issue}
         if _claims_are_verbatim(claims, chunks):
             return {"verified": True, "issue": None}
 
@@ -555,14 +550,11 @@ def verify_answer(
     ).chat(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        options={"num_ctx": 4096, "temperature": 0, "num_predict": 120},
+        options={"num_ctx": 2048, "temperature": 0, "num_predict": 120},
         keep_alive="30m",
     )
 
-    result = _parse_verification_response(response["message"]["content"])
-    if not result["verified"]:
-        print(f"[verifier] rejected at layer 2: {result['issue']}")
-    return result
+    return _parse_verification_response(response["message"]["content"])
 
 
 def _retry_note(issue, chunks):
