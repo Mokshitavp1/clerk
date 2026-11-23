@@ -1,0 +1,6 @@
+{
+  "name": "Clerk — Legal Retrieval Assistant",
+  "description": "High-assurance, hallucination-resistant legal RAG workspace and grounded memorandum synthesizer with 3-layer citation verification.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

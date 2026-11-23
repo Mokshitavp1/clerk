@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+:root {
+  --canvas: #F1EEE9;
+  --canvas-alt: #E4E0E1;
+  --paper: #FDFBF8;
+  --brown: #493628;
+  --dark2: #342219;
+  --tan: #AB886D;
+  --sand: #D6C0B3;
+  --muted: #806C5D;
+  --line: rgba(73, 54, 40, 0.18);
+  --status-green: #4A6741;
+  --status-green-bg: #EBF0E8;
+  --status-amber: #B87D1E;
+  --status-amber-dot: #DFAD56;
+  --status-amber-bg: #F7F1EB;
+  --status-gray: #6E6B66;
+  --status-gray-dot: #9C9995;
+  --status-gray-bg: #ECEAE6;
+}
+
+@layer base {
+  body {
+    background-color: var(--canvas);
+    color: var(--dark2);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+    padding: 0;
+  }
+
+  h1, h2, h3, .font-serif-editorial {
+    font-family: 'Source Serif 4', Georgia, Cambria, serif;
+  }
+
+  .font-mono-tech {
+    font-family: 'IBM Plex Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(171, 136, 109, 0.38);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(171, 136, 109, 0.65);
+}
